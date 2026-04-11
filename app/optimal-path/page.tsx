@@ -10,7 +10,8 @@ import {
   Marker,
   Line,
 } from "react-simple-maps"
-import { Globe, Route, ArrowRight, MapPin, AlertTriangle, LogOut, Loader2 } from "lucide-react"
+import { Route, ArrowRight, MapPin, AlertTriangle, LogOut, Loader2 } from "lucide-react"
+import { AppLogo } from "@/components/app-logo"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -211,9 +212,7 @@ export default function OptimalPathPage() {
       <nav className="flex h-14 items-center justify-between border-b border-border/40 bg-background px-4">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Globe className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <AppLogo />
             <span className="font-semibold tracking-tight">IntelliSupply</span>
           </Link>
         </div>

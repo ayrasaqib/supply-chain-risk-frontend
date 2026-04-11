@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { Globe, MapPin, LogOut } from "lucide-react"
+import { MapPin, Route, LogOut } from "lucide-react"
+import { AppLogo } from "@/components/app-logo"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { RiskPanel } from "@/components/risk-panel"
 import { HubSearch } from "@/components/hub-search"
@@ -108,7 +109,7 @@ export default function DashboardPage() {
         <div className="flex flex-col items-center gap-3">
           <Spinner className="h-10 w-10 text-primary" />
           <p className="text-sm text-muted-foreground">
-            Initializing Supply Chain Risk Monitor...
+            Initializing IntelliSupply...
           </p>
         </div>
       </div>
@@ -121,14 +122,18 @@ export default function DashboardPage() {
       <nav className="flex h-14 items-center justify-between border-b border-border/40 bg-background px-4">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Globe className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold tracking-tight">SupplyChain Risk</span>
+            <AppLogo />
+            <span className="font-semibold tracking-tight">IntelliSupply</span>
           </Link>
         </div>
         
         <div className="flex items-center gap-3">
+          <Link href="/optimal-path">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Route className="h-4 w-4" />
+              <span className="hidden sm:inline">Optimal Path</span>
+            </Button>
+          </Link>
           <Link href="/custom-location">
             <Button variant="outline" size="sm" className="gap-2">
               <MapPin className="h-4 w-4" />
