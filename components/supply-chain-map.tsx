@@ -15,6 +15,14 @@ import type { SupplyChainHub } from "@/lib/types"
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 
+interface MapGeography {
+  rsmKey: string
+}
+
+interface GeographiesRenderProps {
+  geographies: MapGeography[]
+}
+
 interface SupplyChainMapProps {
   hubs: SupplyChainHub[]
   selectedHub: SupplyChainHub | null
@@ -29,8 +37,8 @@ interface Position {
 const MemoizedGeographies = memo(function MemoizedGeographies() {
   return (
     <Geographies geography={GEO_URL}>
-      {({ geographies }) =>
-        geographies.map((geo) => (
+      {({ geographies }: GeographiesRenderProps) =>
+        geographies.map((geo: MapGeography) => (
           <Geography
             key={geo.rsmKey}
             geography={geo}
