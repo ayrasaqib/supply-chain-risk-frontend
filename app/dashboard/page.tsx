@@ -119,23 +119,23 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Top Navigation Bar */}
-      <nav className="flex h-14 items-center justify-between border-b border-border/40 bg-background px-4">
+      <nav className="flex h-16 items-center justify-between border-b border-border/40 bg-background px-5">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <AppLogo />
-            <span className="font-semibold tracking-tight">IntelliSupply</span>
+            <AppLogo className="h-10 w-10" />
+            <span className="text-base font-semibold tracking-tight">IntelliSupply</span>
           </Link>
         </div>
         
         <div className="flex items-center gap-3">
           <Link href="/optimal-path">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="h-10 gap-2 px-4">
               <Route className="h-4 w-4" />
               <span className="hidden sm:inline">Optimal Path</span>
             </Button>
           </Link>
           <Link href="/custom-location">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="h-10 gap-2 px-4">
               <MapPin className="h-4 w-4" />
               <span className="hidden sm:inline">Custom Location</span>
             </Button>
@@ -143,7 +143,7 @@ export default function DashboardPage() {
           <span className="hidden text-sm text-muted-foreground md:inline">
             {user.name}
           </span>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="h-10 gap-2 px-4">
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">Sign out</span>
           </Button>

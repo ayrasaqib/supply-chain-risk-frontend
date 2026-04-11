@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Globe, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { AppLogo } from "@/components/app-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,10 +39,8 @@ export default function LoginPage() {
       <header className="border-b border-border/40">
         <div className="container mx-auto flex h-16 items-center px-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Globe className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold tracking-tight">SupplyChain Risk</span>
+            <AppLogo />
+            <span className="font-semibold tracking-tight">IntelliSupply</span>
           </Link>
         </div>
       </header>

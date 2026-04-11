@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { ArrowRight, Globe, Shield, TrendingUp, Zap, MapPin, BarChart3 } from "lucide-react"
+import { AppLogo } from "@/components/app-logo"
 import { Button } from "@/components/ui/button"
 
 const features = [
@@ -51,10 +52,8 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Globe className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold tracking-tight">SupplyChain Risk</span>
+            <AppLogo />
+            <span className="font-semibold tracking-tight">IntelliSupply</span>
           </Link>
           
           <nav className="hidden items-center gap-6 md:flex">
@@ -188,10 +187,8 @@ export function LandingPage() {
       <footer className="border-t border-border/40 py-8">
         <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 md:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
-              <Globe className="h-3 w-3 text-primary-foreground" />
-            </div>
-            <span className="text-sm font-medium">SupplyChain Risk</span>
+            <AppLogo className="h-6 w-6 rounded" />
+            <span className="text-sm font-medium">IntelliSupply</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Real-time supply chain risk intelligence platform.

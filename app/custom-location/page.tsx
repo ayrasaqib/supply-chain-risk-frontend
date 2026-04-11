@@ -4,17 +4,18 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { 
-  Globe, 
   MapPin, 
   Loader2, 
-  ArrowLeft, 
   AlertTriangle,
   Clock,
   Calendar,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Route,
+  LogOut
 } from "lucide-react"
+import { AppLogo } from "@/components/app-logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -131,7 +132,7 @@ function WeeklyTrend({ forecast }: { forecast: DailyRisk[] }) {
 
 export default function CustomLocationPage() {
   const router = useRouter()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, isLoading: authLoading, logout } = useAuth()
   
   // Form state
   const [name, setName] = useState("")
@@ -191,6 +192,11 @@ export default function CustomLocationPage() {
     setFormError("")
   }
 
+  const handleLogout = () => {
+    logout()
+    router.push("/")
+  }
+
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -208,31 +214,37 @@ export default function CustomLocationPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back to Dashboard</span>
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <Globe className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold tracking-tight">Custom Location Analysis</span>
-            </div>
-          </div>
-          
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">
-              View Map
-            </Button>
+      {/* Navigation */}
+      <nav className="flex h-14 items-center justify-between border-b border-border/40 bg-background px-4">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-2">
+            <AppLogo />
+            <span className="font-semibold tracking-tight">IntelliSupply</span>
           </Link>
         </div>
-      </header>
+
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm" className="gap-2">
+              <MapPin className="h-4 w-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+          </Link>
+          <Link href="/optimal-path">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Route className="h-4 w-4" />
+              <span className="hidden sm:inline">Optimal Path</span>
+            </Button>
+          </Link>
+          <span className="hidden text-sm text-muted-foreground md:inline">
+            {user.name}
+          </span>
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign out</span>
+          </Button>
+        </div>
+      </nav>
 
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8">

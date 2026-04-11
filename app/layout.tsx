@@ -9,7 +9,12 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'IntelliSupply',
-  description: 'Real-time supply chain risk prediction and monitoring system for global logistics operations'
+  description: 'Real-time supply chain risk prediction and monitoring system for global logistics operations',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 }
 
 export default function RootLayout({
