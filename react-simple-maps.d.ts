@@ -48,9 +48,15 @@ declare module "react-simple-maps" {
     children?: ReactNode
   }
 
+  export interface LineProps extends SVGProps<SVGLineElement> {
+    from: [number, number]
+    to: [number, number]
+  }
+
   export const ComposableMap: ComponentType<ComposableMapProps>
   export const Geographies: ComponentType<GeographiesProps>
   export const Geography: ComponentType<GeographyProps>
   export const ZoomableGroup: ComponentType<ZoomableGroupProps>
   export const Marker: ComponentType<MarkerProps>
+  export const Line: ComponentType<LineProps>
 }
