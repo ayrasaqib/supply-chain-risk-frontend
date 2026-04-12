@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { demoHubs, SupplyChainMap } from "./demo-map";
 import { scrollToSection } from "./ui/scroll";
 import { useReveal } from "@/hooks/use-reveal";
-import "../styles/globals.css";
 
 const features = [
   {
