@@ -68,10 +68,7 @@ export function LandingPage() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* HEADER */}
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
-        {/* glow separation line */}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
-
-        {/* subtle inner highlight (IMPORTANT) */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -120,7 +117,7 @@ export function LandingPage() {
           {/* TEXT */}
           <div className="mx-auto max-w-3xl text-center">
             <div className="pointer-events-none absolute inset-0 opacity-[0.9]"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_30%)]" />
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_30%)]" />
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -173,7 +170,6 @@ export function LandingPage() {
               Global Risk Network Example
             </div>
 
-            {/* edge blending mask */}
             <div className="relative h-[420px] w-full overflow-hidden rounded-[28px]">
               <SupplyChainMap
                 hubs={demoHubs}
@@ -181,7 +177,6 @@ export function LandingPage() {
                 onSelectHub={() => {}}
               />
 
-              {/* full edge fade */}
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_60%,rgba(0,0,0,0.6))]" />
             </div>
           </div>
