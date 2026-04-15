@@ -7,8 +7,10 @@ import {
   Shield,
   TrendingUp,
   Zap,
+  Route,
   MapPin,
   BarChart3,
+  Bot,
 } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -30,10 +32,10 @@ const features = [
       "Comprehensive risk scoring based on weather, geopolitical stability, infrastructure, and more.",
   },
   {
-    icon: TrendingUp,
-    title: "Predictive Analytics",
+    icon: Bot,
+    title: "AI Model Analytics",
     description:
-      "AI-powered predictions to anticipate disruptions before they impact your supply chain.",
+      "AI-powered evaluation model to anticipate disruptions before they impact your supply chain.",
   },
   {
     icon: Zap,
@@ -48,10 +50,10 @@ const features = [
       "Analyze risk factors for any coordinates worldwide with our dynamic hub analysis.",
   },
   {
-    icon: BarChart3,
-    title: "Detailed Reports",
+    icon: Route,
+    title: "Optimal Route",
     description:
-      "Generate comprehensive risk reports with actionable insights for your operations.",
+      "Specialised algorithm designed to find routes with optimal risk scores",
   },
 ];
 
