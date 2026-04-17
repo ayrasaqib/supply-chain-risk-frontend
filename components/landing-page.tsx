@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { demoHubs, SupplyChainMap } from "./demo-map";
 import { scrollToSection } from "./ui/scroll";
 import { useReveal } from "@/hooks/use-reveal";
+import { NavBar } from "./ui/navbar";
 
 const features = [
   {
@@ -69,49 +70,7 @@ export function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* HEADER */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <AppLogo />
-            <span className="font-semibold tracking-tight">IntelliSupply</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6">
-            <button
-              onClick={() => scrollToSection("stats")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Platform
-            </button>
-            <button
-              onClick={() => scrollToSection("features")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Features
-            </button>
-
-            <button
-              onClick={() => scrollToSection("pricing")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Pricing
-            </button>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Log in
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button size="sm">Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <NavBar variant="landing"></NavBar>
 
       {/* HERO */}
       <section className="relative overflow-hidden py-24 md:py-32">

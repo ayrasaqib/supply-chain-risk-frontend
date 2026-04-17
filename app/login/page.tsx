@@ -1,111 +1,187 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
-import { AppLogo } from "@/components/app-logo"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useAuth } from "@/lib/auth-context"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+
+import { AppLogo } from "@/components/app-logo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/auth-context";
+
+const GEO_URL =
+  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { login } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const { login } = useAuth();
+  const { user, isLoading: authLoading, logout } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (user || authLoading) {
+      router.push("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-    const result = await login(email, password)
+    const result = await login(email, password);
 
     if (result.success) {
-      router.push("/dashboard")
+      router.push("/dashboard");
     } else {
-      setError(result.error || "Login failed")
-      setIsLoading(false)
+      setError(result.error || "Login failed");
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="border-b border-border/40">
-        <div className="container mx-auto flex h-16 items-center px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <AppLogo />
-            <span className="font-semibold tracking-tight">IntelliSupply</span>
-          </Link>
-        </div>
-      </header>
+    <div className="relative min-h-screen overflow-hidden bg-[oklch(15.167%_0.05942_261.972)]">
+      {/*  MAP BACKGROUND */}
+      <div className="absolute inset-0 w-full h-full opacity-50 pointer-events-none scale-125">
+        <ComposableMap
+          className="w-full h-full"
+          projection="geoMercator"
+          projectionConfig={{
+            scale: 140,
+            center: [0, 20],
+          }}
+        >
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  fill="#1e293b"
+                  stroke="#334155"
+                  strokeWidth={0.6}
+                  style={{
+                    default: { outline: "none" },
+                    hover: { outline: "none" },
+                    pressed: { outline: "none" },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+        </ComposableMap>
+      </div>
 
-      {/* Login Form */}
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Sign in to access your dashboard
-            </p>
-          </div>
+      {/* 🌫 DARK OVERLAY (z-10) */}
+      <div className="absolute inset-0 z-10 bg-slate-950/60" />
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
+      {/* PAGE CONTENT (z-20) */}
+      <div className="relative z-20 flex min-h-screen flex-col">
+        {/* HEADER */}
+        <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            {"Don't have an account? "}
-            <Link href="/register" className="font-medium text-primary hover:underline">
-              Create one
+          <div className="container mx-auto flex h-16 items-center justify-between px-4">
+            <Link href="/" className="flex items-center gap-2">
+              <AppLogo />
+              <span className="font-semibold tracking-tight">
+                IntelliSupply
+              </span>
             </Link>
-          </p>
-        </div>
-      </main>
+
+            <div className="flex items-center gap-3">
+              <Link href="/login">
+                <Button variant="ghost" size="sm">
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button size="sm">Get Started</Button>
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        {/* MAIN */}
+        <main className="flex flex-1 items-center justify-center px-4 py-12">
+          <div className="w-full max-w-sm">
+            {/* GLASS LOGIN CARD */}
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl shadow-2xl p-6">
+              <div className="text-center">
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  Welcome back
+                </h1>
+                <p className="mt-2 text-sm text-slate-300">
+                  Sign in to access your dashboard
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-slate-200">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-slate-200">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {error && <p className="text-sm text-red-400">{error}</p>}
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
+                </Button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-slate-300">
+                {"Don't have an account? "}
+                <Link
+                  href="/register"
+                  className="font-medium text-white hover:underline"
+                >
+                  Create one
+                </Link>
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
-  )
+  );
 }
