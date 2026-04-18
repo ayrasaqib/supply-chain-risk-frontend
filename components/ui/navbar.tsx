@@ -130,26 +130,6 @@ export function NavBar({
                       <Map className="h-4 w-4 text-muted-foreground" />
                       Dashboard
                     </Link>
-
-                    {/* CUSTOM LOCATION */}
-                    <Link
-                      href="/custom-location"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-md"
-                    >
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      Custom Location
-                    </Link>
-
-                    {/* OPTIMAL PATH */}
-                    <Link
-                      href="/optimal-path"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-md"
-                    >
-                      <Route className="h-4 w-4 text-muted-foreground" />
-                      Optimal Path
-                    </Link>
                     <div className="my-2 h-px bg-border" />
                     <button
                       onClick={() => {
