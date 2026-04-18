@@ -802,6 +802,8 @@ export default function CustomLocationPage() {
   const [formError, setFormError] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hub, setHub] = useState<LocationAnalysis | null>(null)
+  const isFormComplete =
+    name.trim().length > 0 && latitude.trim().length > 0 && longitude.trim().length > 0
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -935,6 +937,7 @@ export default function CustomLocationPage() {
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     disabled={isAnalyzing}
+                    className="disabled:border-input disabled:bg-transparent disabled:text-foreground disabled:opacity-100"
                   />
                 </div>
 
@@ -949,6 +952,7 @@ export default function CustomLocationPage() {
                       value={latitude}
                       onChange={(event) => setLatitude(event.target.value)}
                       disabled={isAnalyzing}
+                      className="disabled:border-input disabled:bg-transparent disabled:text-foreground disabled:opacity-100"
                     />
                     <p className="text-xs text-muted-foreground">Range: -90 to 90</p>
                   </div>
@@ -962,6 +966,7 @@ export default function CustomLocationPage() {
                       value={longitude}
                       onChange={(event) => setLongitude(event.target.value)}
                       disabled={isAnalyzing}
+                      className="disabled:border-input disabled:bg-transparent disabled:text-foreground disabled:opacity-100"
                     />
                     <p className="text-xs text-muted-foreground">Range: -180 to 180</p>
                   </div>
@@ -970,11 +975,15 @@ export default function CustomLocationPage() {
                 {formError && <p className="text-sm text-destructive">{formError}</p>}
 
                 <div className="flex gap-3 pt-2">
-                  <Button onClick={handleAnalyze} disabled={isAnalyzing} className="flex-1 gap-2">
+                  <Button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || !isFormComplete}
+                    className="flex-1 gap-2"
+                  >
                     {isAnalyzing ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating Hub...
+                        In Progress...
                       </>
                     ) : (
                       <>
