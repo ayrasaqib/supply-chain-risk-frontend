@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
+import { NavBar } from "@/components/ui/navbar";
 
 const GEO_URL =
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -78,42 +79,14 @@ export default function LoginPage() {
           </Geographies>
         </ComposableMap>
       </div>
-
-      {/* 🌫 DARK OVERLAY (z-10) */}
       <div className="absolute inset-0 z-10 bg-slate-950/60" />
-
-      {/* PAGE CONTENT (z-20) */}
       <div className="relative z-20 flex min-h-screen flex-col">
         {/* HEADER */}
-        <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
-
-          <div className="container mx-auto flex h-16 items-center justify-between px-4">
-            <Link href="/" className="flex items-center gap-2">
-              <AppLogo />
-              <span className="font-semibold tracking-tight">
-                IntelliSupply
-              </span>
-            </Link>
-
-            <div className="flex items-center gap-3">
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Log in
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button size="sm">Get Started</Button>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <NavBar variant="auth"></NavBar>
 
         {/* MAIN */}
         <main className="flex flex-1 items-center justify-center px-4 py-12">
           <div className="w-full max-w-sm">
-            {/* GLASS LOGIN CARD */}
             <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl shadow-2xl p-6">
               <div className="text-center">
                 <h1 className="text-2xl font-bold tracking-tight text-white">
