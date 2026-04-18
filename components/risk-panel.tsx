@@ -6,10 +6,6 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RiskScoreGauge } from "./risk-score-gauge"
-import {
-  WeatherRiskCard,
-  GeopoliticalRiskCard,
-} from "./risk-factor-card"
 import type { SupplyChainHub, DailyRisk } from "@/lib/types"
 import { RISK_COLORS } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -70,7 +66,6 @@ function WeeklyTrend({ forecast }: { forecast: DailyRisk[] }) {
   const diff = lastScore - firstScore
   const avgScore = Math.round(forecast.reduce((sum, d) => sum + d.riskScore, 0) / forecast.length)
   const maxRisk = forecast.reduce((max, d) => d.riskScore > max.riskScore ? d : max, forecast[0])
-  const minRisk = forecast.reduce((min, d) => d.riskScore < min.riskScore ? d : min, forecast[0])
 
   let TrendIcon = Minus
   let trendColor = "text-muted-foreground"
@@ -116,7 +111,20 @@ export function RiskPanel({ hub, onClose }: RiskPanelProps) {
   if (!hub) return null
 
   const color = RISK_COLORS[hub.riskLevel]
+  const headerLocation = hub.country === "Custom Location" ? `${hub.id} • ${hub.region}` : `${hub.country} • ${hub.region}`
   const formattedDate = hub.lastUpdated.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  const worstInterval = hub.apiRisk?.worstInterval?.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  const forecastOrigin = hub.apiRisk?.forecastOrigin?.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -140,9 +148,7 @@ export function RiskPanel({ hub, onClose }: RiskPanelProps) {
           <h2 className="text-lg font-bold text-foreground">{hub.name}</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-3.5 w-3.5" />
-            <span>
-              {hub.country} • {hub.region}
-            </span>
+            <span>{headerLocation}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
@@ -198,8 +204,68 @@ export function RiskPanel({ hub, onClose }: RiskPanelProps) {
               {/* Risk Factor Cards */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Risk Breakdown</h3>
-                <WeatherRiskCard risk={hub.riskFactors.weather} />
-                <GeopoliticalRiskCard risk={hub.riskFactors.geopolitical} />
+                {hub.apiRisk ? (
+                  <div className="grid gap-3">
+                    <div className="rounded-lg border border-border/50 bg-card/30 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Latest Assessment
+                      </p>
+                      <div className="mt-2 space-y-2 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Primary driver</span>
+                          <span className="font-medium text-foreground">
+                            {hub.weeklyForecast[0]?.primaryDriver ?? "Unavailable"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Worst interval</span>
+                          <span className="text-right font-medium text-foreground">
+                            {worstInterval ?? "Unavailable"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Snapshots</span>
+                          <span className="font-medium text-foreground">{hub.apiRisk.snapshotCount}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/50 bg-card/30 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Analytics Source
+                      </p>
+                      <div className="mt-2 space-y-2 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Dataset</span>
+                          <span className="text-right font-medium text-foreground">
+                            {hub.apiRisk.datasetType}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Source</span>
+                          <span className="text-right font-medium text-foreground">
+                            {hub.apiRisk.dataSource}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Model</span>
+                          <span className="font-medium text-foreground">
+                            {hub.apiRisk.modelVersion ?? "Unavailable"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground">Forecast origin</span>
+                          <span className="text-right font-medium text-foreground">
+                            {forecastOrigin ?? "Unavailable"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-border/50 bg-card/30 p-4 text-sm text-muted-foreground">
+                    Detailed analytics are not available for this hub yet.
+                  </div>
+                )}
               </div>
 
               {/* Hub Info */}
@@ -209,6 +275,10 @@ export function RiskPanel({ hub, onClose }: RiskPanelProps) {
                   <div className="rounded-md bg-muted/30 px-3 py-2">
                     <span className="text-xs text-muted-foreground">Type</span>
                     <p className="font-medium capitalize">{hub.type}</p>
+                  </div>
+                  <div className="rounded-md bg-muted/30 px-3 py-2">
+                    <span className="text-xs text-muted-foreground">Hub ID</span>
+                    <p className="font-medium">{hub.id}</p>
                   </div>
                   <div className="rounded-md bg-muted/30 px-3 py-2">
                     <span className="text-xs text-muted-foreground">Coordinates</span>
