@@ -41,19 +41,30 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
     setSearchValue("")
   }
 
+  const getSecondaryLabel = (hub: SupplyChainHub) => {
+    if (hub.country === "Custom Location") {
+      return `${hub.id} • ${hub.region}`
+    }
+
+    return `${hub.country} • ${hub.region}`
+  }
+
   return (
     <Popover open={searchOpen} onOpenChange={setSearchOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          className="gap-2 bg-card/90 backdrop-blur-sm"
+          className="gap-2 border-white/10 bg-slate-950/45 text-slate-100 backdrop-blur-md hover:bg-slate-950/55 hover:text-white"
         >
           <Search className="h-4 w-4" />
           <span className="hidden sm:inline">Search Hubs</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent
+        className="w-80 border-white/10 bg-slate-950/55 p-0 text-slate-100 backdrop-blur-md"
+        align="start"
+      >
         <Command>
           <CommandInput
             placeholder="Search hub by name..."
@@ -77,7 +88,7 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{hub.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {hub.country}
+                      {getSecondaryLabel(hub)}
                     </p>
                   </div>
                   <Badge

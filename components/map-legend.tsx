@@ -8,8 +8,8 @@ const levels: RiskLevel[] = ["low", "elevated", "high", "critical"]
 
 export function MapLegend() {
   return (
-    <div className="absolute bottom-4 left-4 z-10 rounded-lg border border-border/50 bg-card/95 p-3 shadow-lg backdrop-blur-sm">
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="absolute bottom-4 left-4 z-10 rounded-lg border border-white/10 bg-slate-950/45 p-3 shadow-lg backdrop-blur-md">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
         Risk Level
       </h4>
       <div className="flex flex-col gap-1.5">
@@ -19,7 +19,7 @@ export function MapLegend() {
               className="h-3 w-3 rounded-full"
               style={{ backgroundColor: RISK_COLORS[level] }}
             />
-            <span className="text-xs text-foreground">{getRiskLevelLabel(level)}</span>
+            <span className="text-xs text-slate-100">{getRiskLevelLabel(level)}</span>
           </div>
         ))}
       </div>

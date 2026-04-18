@@ -14,7 +14,7 @@ const features = [
   {
     icon: Shield,
     title: "Risk Assessment",
-    description: "Comprehensive risk scoring based on weather, geopolitical stability, infrastructure, and more.",
+    description: "Comprehensive risk scoring based on weather and geopolitical events.",
   },
   {
     icon: TrendingUp,
@@ -24,7 +24,7 @@ const features = [
   {
     icon: Zap,
     title: "Real-time Alerts",
-    description: "Instant notifications when risk levels change at any of your monitored locations.",
+    description: "Instant notifications when risk levels change at any the locations you subscribe to.",
   },
   {
     icon: MapPin,
@@ -42,7 +42,7 @@ const stats = [
   { value: "50+", label: "Global Hubs", sublabel: "Monitored" },
   { value: "99.9%", label: "Uptime", sublabel: "Reliability" },
   { value: "15+", label: "Risk Factors", sublabel: "Analyzed" },
-  { value: "24/7", label: "Monitoring", sublabel: "Coverage" },
+  { value: "24/7", label: "Monitoring", sublabel: "Availability" },
 ]
 
 export function LandingPage() {
