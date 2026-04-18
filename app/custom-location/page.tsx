@@ -19,6 +19,11 @@ import { GeopoliticalRiskCard, WeatherRiskCard } from "@/components/risk-factor-
 import { RiskScoreGauge } from "@/components/risk-score-gauge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -29,6 +34,7 @@ import { getRiskLevel, getRiskLevelLabel } from "@/lib/risk-calculator"
 import type { RiskLevel } from "@/lib/types"
 import { RISK_COLORS } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 interface ForecastDay {
   date: Date
@@ -44,6 +50,7 @@ interface LocationAnalysis {
   location: { latitude: number; longitude: number }
   type: string
   region: string
+  graphUrl: string | null
   riskScore: number
   riskLevel: RiskLevel
   apiRiskFactors: {
@@ -84,6 +91,7 @@ interface ApiErrorResponse {
 interface AnalyzeLocationResponse {
   hub_id: string
   risk: RiskLocationResponse
+  graph_url?: string | null
 }
 
 interface RiskEventAttribute {
@@ -200,6 +208,12 @@ interface RiskEventAttribute {
 }
 
 interface RiskEvent {
+  time_object?: {
+    timestamp?: string
+    duration?: number
+    duration_unit?: string
+    timezone?: string
+  }
   event_type?: string
   attribute?: RiskEventAttribute
 }
@@ -476,7 +490,8 @@ function mapRiskResponseToAnalysis(
   hubId: string,
   name: string,
   latitude: number,
-  longitude: number
+  longitude: number,
+  graphUrl: string | null
 ): LocationAnalysis {
   const events = response.events ?? []
 
@@ -586,6 +601,7 @@ function mapRiskResponseToAnalysis(
     },
     type: "dynamic",
     region: getRegionFromCoordinates(resolvedLatitude, resolvedLongitude),
+    graphUrl,
     riskScore: overallScore,
     riskLevel: overallRiskLevel,
     apiRiskFactors: {
@@ -715,6 +731,67 @@ function WeeklyTrend({ forecast }: { forecast: ForecastDay[] }) {
   )
 }
 
+function CombinedRiskTrendChart({ forecast }: { forecast: ForecastDay[] }) {
+  const chartData = forecast.map((day) => ({
+    day: day.date.toLocaleDateString("en-US", { weekday: "short" }),
+    fullDate: day.date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    riskScore: day.riskScore,
+  }))
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">Combined Risk Score Trend</h3>
+      <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
+        <ChartContainer
+          config={{
+            riskScore: {
+              label: "Combined Risk Score",
+              color: "#f97316",
+            },
+          }}
+          className="h-[240px] w-full"
+        >
+          <LineChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+            <XAxis
+              dataKey="day"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              stroke="#94a3b8"
+            />
+            <YAxis
+              domain={[0, 100]}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              stroke="#94a3b8"
+              tickFormatter={(value) => `${value}%`}
+            />
+            <ChartTooltip
+              cursor={{ stroke: "rgba(249, 115, 22, 0.3)", strokeWidth: 1 }}
+              content={
+                <ChartTooltipContent
+                  labelKey="fullDate"
+                  formatter={(value) => [`${value}%`, "Combined Risk Score"]}
+                />
+              }
+            />
+            <Line
+              type="monotone"
+              dataKey="riskScore"
+              stroke="var(--color-riskScore)"
+              strokeWidth={3}
+              dot={{ fill: "#f97316", r: 4, strokeWidth: 0 }}
+              activeDot={{ r: 6, fill: "#fdba74", stroke: "#f97316", strokeWidth: 2 }}
+            />
+          </LineChart>
+        </ChartContainer>
+      </div>
+    </div>
+  )
+}
+
 export default function CustomLocationPage() {
   const router = useRouter()
   const { user, isLoading: authLoading, logout } = useAuth()
@@ -763,7 +840,8 @@ export default function CustomLocationPage() {
         analysisResponse.hub_id,
         name.trim(),
         lat,
-        lon
+        lon,
+        analysisResponse.graph_url ?? null
       )
 
       setHub(mappedHub)
@@ -1106,6 +1184,10 @@ export default function CustomLocationPage() {
                               </div>
                             )}
                           </div>
+
+                          {hub.weeklyForecast.length > 0 && (
+                            <CombinedRiskTrendChart forecast={hub.weeklyForecast} />
+                          )}
 
                           <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
                             <p className="text-xs text-muted-foreground">
