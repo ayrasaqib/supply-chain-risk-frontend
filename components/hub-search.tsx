@@ -55,14 +55,14 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
         <Button
           variant="outline"
           size="sm"
-          className="gap-2 border-white/10 bg-slate-950/45 text-slate-100 backdrop-blur-md hover:bg-slate-950/55 hover:text-white"
+          className="h-auto rounded-lg border border-white/10 bg-slate-950/45 px-3 py-3 text-slate-100 shadow-lg backdrop-blur-md hover:bg-slate-950/55 hover:text-white"
         >
           <Search className="h-4 w-4" />
           <span className="hidden sm:inline">Search Hubs</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80 border-white/10 bg-slate-950/55 p-0 text-slate-100 backdrop-blur-md"
+        className="w-80 rounded-lg border border-white/10 bg-slate-950/45 p-0 text-slate-100 shadow-lg backdrop-blur-md"
         align="start"
       >
         <Command>

@@ -205,7 +205,25 @@ export function SupplyChainMap({
   }, [selectedRegion])
 
   useEffect(() => {
-    if (!selectedHub) return
+    if (!selectedHub) {
+      if (selectedRegion) {
+        const preset = REGION_MAP_PRESETS[selectedRegion]
+        if (!preset) return
+
+        setPosition({
+          coordinates: preset.center,
+          zoom: preset.zoom,
+        })
+        return
+      }
+
+      setPosition({
+        coordinates: DEFAULT_MAP_POSITION.center,
+        zoom: DEFAULT_MAP_POSITION.zoom,
+      })
+      return
+    }
+
     if (!hubs.some((hub) => hub.id === selectedHub.id)) return
 
     setPosition((currentPosition) => ({

@@ -119,6 +119,7 @@ export default function DashboardPage() {
   // Handle panel close
   const handleClosePanel = useCallback(() => {
     setSelectedHub(null)
+    setSelectedRegion(null)
   }, [])
 
   // Handle logout

@@ -121,6 +121,13 @@ export function GeopoliticalRiskCard({ risk }: GeopoliticalRiskCardProps) {
   const legacyDetails = isLegacyGeopoliticalRisk(risk) ? getPrimaryGeopoliticalDriver(risk) : null
   const articleCount = !isLegacyGeopoliticalRisk(risk) ? risk.articleCount : null
   const sentiment = !isLegacyGeopoliticalRisk(risk) ? risk.sentiment : null
+  const hasSentimentData =
+    sentiment?.positive !== null &&
+    sentiment?.positive !== undefined ||
+    sentiment?.neutral !== null &&
+    sentiment?.neutral !== undefined ||
+    sentiment?.negative !== null &&
+    sentiment?.negative !== undefined
 
   return (
     <Card className="border-border/50 bg-card/50">
@@ -155,7 +162,7 @@ export function GeopoliticalRiskCard({ risk }: GeopoliticalRiskCardProps) {
               <p className="font-medium text-foreground">{articleCount}</p>
             </div>
           )}
-          {sentiment && (
+          {hasSentimentData && sentiment && (
             <div className="rounded-md bg-muted/30 px-3 py-2">
               <span className="text-xs text-muted-foreground">Sentiment Distribution</span>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -172,6 +179,12 @@ export function GeopoliticalRiskCard({ risk }: GeopoliticalRiskCardProps) {
                   <p className="text-sm font-semibold text-rose-100">{sentiment.negative ?? 0}</p>
                 </div>
               </div>
+            </div>
+          )}
+          {!hasSentimentData && (articleCount === null || articleCount === undefined) && (
+            <div className="rounded-md bg-muted/30 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Geopolitical Detail</span>
+              <p className="font-medium text-foreground">Unavailable</p>
             </div>
           )}
         </CardContent>

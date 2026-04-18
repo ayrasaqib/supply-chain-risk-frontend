@@ -32,6 +32,7 @@ interface ListLocationResponse {
 
 interface RiskSnapshotResponse {
   forecast_timestamp?: string
+  forecast_lead_hours?: number
   risk_score?: number
   risk_level?: string
   primary_driver?: string
@@ -40,16 +41,65 @@ interface RiskSnapshotResponse {
 interface RiskEventAttributeResponse {
   hub_id?: string
   hub_name?: string
+  lat?: number
+  lon?: number
+  day?: number
   date?: string
   peak_risk_score?: number
   mean_risk_score?: number
   risk_level?: string
+  combined_risk_score?: number
+  combined_risk_level?: string
   primary_driver?: string
   worst_interval?: string
+  weather_component?: number
+  geopolitical_component?: number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+        article_count?: number
+        articles_count?: number
+        positive_count?: number
+        neutral_count?: number
+        negative_count?: number
+        positive_articles?: number
+        neutral_articles?: number
+        negative_articles?: number
+        sentiment_distribution?: {
+          positive?: number
+          neutral?: number
+          negative?: number
+        }
+      }
+  country?: string
+  geopolitical_risk_score?: number
+  geopolitical_risk_level?: string
+  country_scores?: Array<{
+    composite_risk_score?: number
+    country?: string
+    timeframes?: {
+      "7d"?: {
+        article_count?: number
+        avg_sentiment?: number
+        distribution?: {
+          positive?: number
+          neutral?: number
+          negative?: number
+        }
+      }
+    }
+  }>
+  combined_component?:
+    | number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+        risk_level?: string
+      }
   snapshots?: RiskSnapshotResponse[]
   model_version?: string
-  lat?: number
-  lon?: number
   outlook_risk_score?: number
   outlook_risk_level?: string
   peak_day?: string
@@ -70,6 +120,10 @@ interface RiskLocationResponse {
     timestamp?: string
   }
   events?: RiskEventResponse[]
+}
+
+function getFirstDefinedNumber(...values: Array<number | undefined>) {
+  return values.find((value) => typeof value === "number" && !Number.isNaN(value))
 }
 
 function buildUrl(path: string) {
@@ -102,6 +156,12 @@ function scaleRiskScore(score?: number) {
   return clampScore((score ?? 0) * 100)
 }
 
+function normalizeRiskScore(score?: number) {
+  if (typeof score !== "number" || Number.isNaN(score)) return 0
+  const scaledScore = score <= 1 ? score * 100 : score
+  return clampScore(scaledScore)
+}
+
 function normalizeRiskLevel(level?: string, fallbackScore = 0): RiskLevel {
   switch (level?.trim().toLowerCase()) {
     case "low":
@@ -124,6 +184,20 @@ function parseDate(value?: string) {
   if (!value) return undefined
   if (value.includes("T")) return new Date(value)
   return new Date(value.replace(" ", "T") + "Z")
+}
+
+function getComponentScore(
+  component?:
+    | number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+      }
+) {
+  if (!component) return undefined
+  if (typeof component === "number") return component
+  return getFirstDefinedNumber(component.risk_score, component.score, component.risk)
 }
 
 function inferHubType(name: string): HubType {
@@ -227,19 +301,112 @@ function buildAlerts(
   return alerts
 }
 
+function getMostCommonPrimaryDriver(forecast: DailyRisk[]) {
+  const counts = new Map<string, number>()
+
+  for (const day of forecast) {
+    const driver = day.primaryDriver?.trim()
+    if (!driver) continue
+    counts.set(driver, (counts.get(driver) ?? 0) + 1)
+  }
+
+  let mostCommon: string | null = null
+  let highestCount = 0
+
+  for (const [driver, count] of counts.entries()) {
+    if (count > highestCount) {
+      mostCommon = driver
+      highestCount = count
+    }
+  }
+
+  return mostCommon
+}
+
+function getGeopoliticalArticleStats(component: RiskEventAttributeResponse["geopolitical_component"]) {
+  if (!component || typeof component === "number") {
+    return {
+      articleCount: null,
+      sentiment: {
+        positive: null,
+        neutral: null,
+        negative: null,
+      },
+    }
+  }
+
+  return {
+    articleCount: getFirstDefinedNumber(component.article_count, component.articles_count) ?? null,
+    sentiment: {
+      positive:
+        getFirstDefinedNumber(
+          component.positive_count,
+          component.positive_articles,
+          component.sentiment_distribution?.positive
+        ) ?? null,
+      neutral:
+        getFirstDefinedNumber(
+          component.neutral_count,
+          component.neutral_articles,
+          component.sentiment_distribution?.neutral
+        ) ?? null,
+      negative:
+        getFirstDefinedNumber(
+          component.negative_count,
+          component.negative_articles,
+          component.sentiment_distribution?.negative
+        ) ?? null,
+    },
+  }
+}
+
+function getCountryScoreStats(attribute?: RiskEventAttributeResponse) {
+  const countryScores = attribute?.country_scores ?? []
+  const matchingCountry =
+    countryScores.find((score) => score.country && score.country === attribute?.country) ??
+    countryScores[0]
+
+  if (!matchingCountry) {
+    return {
+      articleCount: null,
+      sentiment: {
+        positive: null,
+        neutral: null,
+        negative: null,
+      },
+    }
+  }
+
+  return {
+    articleCount:
+      matchingCountry.timeframes?.["7d"]?.article_count,
+    sentiment: {
+      positive:
+        matchingCountry.timeframes?.["7d"]?.distribution?.positive,
+      neutral:
+        matchingCountry.timeframes?.["7d"]?.distribution?.neutral,
+      negative:
+        matchingCountry.timeframes?.["7d"]?.distribution?.negative,
+    },
+  }
+}
+
 function mapDailyForecast(event: RiskEventResponse): DailyRisk | null {
   if (event.event_type !== "daily_risk_assessment" || !event.attribute?.date) {
     return null
   }
 
-  const riskScore = scaleRiskScore(
-    event.attribute.peak_risk_score ?? event.attribute.mean_risk_score
+  const riskScore = normalizeRiskScore(
+    getFirstDefinedNumber(
+      event.attribute.combined_risk_score,
+      event.attribute.mean_risk_score
+    )
   )
 
   return {
     date: parseDate(event.attribute.date) ?? new Date(),
     riskScore,
-    riskLevel: normalizeRiskLevel(event.attribute.risk_level, riskScore),
+    riskLevel: normalizeRiskLevel(event.attribute.combined_risk_level, riskScore),
     primaryDriver: event.attribute.primary_driver ?? "Unknown",
   }
 }
@@ -248,9 +415,7 @@ function mapRiskOverview(response: RiskLocationResponse): ApiRiskOverview | unde
   const dailyEvents = (response.events ?? [])
     .filter((event) => event.event_type === "daily_risk_assessment")
     .sort((left, right) => {
-      const leftDate = parseDate(left.attribute?.date)?.getTime() ?? 0
-      const rightDate = parseDate(right.attribute?.date)?.getTime() ?? 0
-      return leftDate - rightDate
+      return (left.attribute?.day ?? 0) - (right.attribute?.day ?? 0)
     })
   const firstDaily = dailyEvents[0]?.attribute
   const outlook = response.events?.find((event) => event.event_type === "seven_day_outlook")?.attribute
@@ -275,12 +440,11 @@ function mapRiskOverview(response: RiskLocationResponse): ApiRiskOverview | unde
 
 function mapLocationRisk(location: LocationListItem, risk: RiskLocationResponse): SupplyChainHub {
   const metadata = getHubMetadata(location)
-  const dailyRiskEvents = (risk.events ?? [])
+  const events = risk.events ?? []
+  const dailyRiskEvents = events
     .filter((event) => event.event_type === "daily_risk_assessment")
     .sort((left, right) => {
-      const leftDate = parseDate(left.attribute?.date)?.getTime() ?? 0
-      const rightDate = parseDate(right.attribute?.date)?.getTime() ?? 0
-      return leftDate - rightDate
+      return (left.attribute?.day ?? 0) - (right.attribute?.day ?? 0)
     })
   const dailyForecast = dailyRiskEvents
     .map(mapDailyForecast)
@@ -288,13 +452,43 @@ function mapLocationRisk(location: LocationListItem, risk: RiskLocationResponse)
     .slice(0, 7)
 
   const currentAssessment = dailyRiskEvents[0]?.attribute
-  const outlook = risk.events?.find((event) => event.event_type === "seven_day_outlook")?.attribute
+  const outlook = events.find((event) => event.event_type === "seven_day_outlook")?.attribute
+  const geopoliticalEvent = events.find(
+    (event) => event.event_type === "geopolitical_risk_assessment"
+  )?.attribute
 
   const riskScore = scaleRiskScore(
-    currentAssessment?.peak_risk_score ??
+    currentAssessment?.combined_risk_score ??
+      currentAssessment?.peak_risk_score ??
       currentAssessment?.mean_risk_score ??
+      outlook?.combined_risk_score ??
       outlook?.outlook_risk_score
   )
+  const fallbackRiskFactors = createFallbackRiskFactors(riskScore)
+  const weatherScoreValue = getFirstDefinedNumber(
+    getComponentScore(outlook?.weather_component),
+    getComponentScore(currentAssessment?.weather_component),
+    ...((currentAssessment?.snapshots ?? []).map((snapshot) => snapshot.risk_score))
+  )
+  const geopoliticalScoreValue = getFirstDefinedNumber(
+    getComponentScore(outlook?.geopolitical_component),
+    getComponentScore(currentAssessment?.geopolitical_component),
+    currentAssessment?.geopolitical_risk_score
+  )
+  const weatherScore =
+    weatherScoreValue !== undefined
+      ? normalizeRiskScore(weatherScoreValue)
+      : fallbackRiskFactors.weather.score
+  const geopoliticalScore =
+    geopoliticalScoreValue !== undefined
+      ? normalizeRiskScore(geopoliticalScoreValue)
+      : fallbackRiskFactors.geopolitical.score
+  const weatherPrimaryDriver = getMostCommonPrimaryDriver(dailyForecast)
+  const geopoliticalComponentStats = getGeopoliticalArticleStats(outlook?.geopolitical_component)
+  const geopoliticalCountryStats = geopoliticalEvent?.country_scores?.length
+    ? getCountryScoreStats(geopoliticalEvent)
+    : getCountryScoreStats(outlook)
+  const apiRisk = mapRiskOverview(risk)
 
   return {
     id: location.hub_id,
@@ -308,20 +502,52 @@ function mapLocationRisk(location: LocationListItem, risk: RiskLocationResponse)
     type: metadata.type,
     riskScore,
     riskLevel: normalizeRiskLevel(
-      currentAssessment?.risk_level ?? outlook?.outlook_risk_level,
+      currentAssessment?.combined_risk_level ??
+        currentAssessment?.risk_level ??
+        outlook?.combined_risk_level ??
+        outlook?.outlook_risk_level,
       riskScore
     ),
-    riskFactors: createFallbackRiskFactors(riskScore),
+    riskFactors: fallbackRiskFactors,
+    apiRiskFactors: {
+      weather: {
+        score: weatherScore,
+        primaryDriver: weatherPrimaryDriver,
+        primaryDriverLabel: weatherPrimaryDriver ? "Most Common Driver" : null,
+      },
+      geopolitical: {
+        score: geopoliticalScore,
+        articleCount:
+          geopoliticalCountryStats.articleCount ?? geopoliticalComponentStats.articleCount,
+        sentiment: {
+          positive:
+            geopoliticalCountryStats.sentiment.positive ??
+            geopoliticalComponentStats.sentiment.positive,
+          neutral:
+            geopoliticalCountryStats.sentiment.neutral ??
+            geopoliticalComponentStats.sentiment.neutral,
+          negative:
+            geopoliticalCountryStats.sentiment.negative ??
+            geopoliticalComponentStats.sentiment.negative,
+        },
+      },
+    },
     weeklyForecast: dailyForecast,
     lastUpdated: parseDate(risk.time_object?.timestamp) ?? new Date(),
     alerts: buildAlerts(currentAssessment, outlook),
-    apiRisk: mapRiskOverview(risk),
+    apiRisk,
+    latestAssessmentDate: apiRisk?.currentDate,
+    latestPrimaryDriver: currentAssessment?.primary_driver ?? null,
+    latestWorstInterval: apiRisk?.worstInterval,
+    daysAssessed: apiRisk?.daysAssessed ?? (dailyForecast.length > 0 ? dailyForecast.length : undefined),
+    peakDay: apiRisk?.peakDay,
+    peakDayNumber: apiRisk?.peakDayNumber,
     riskDataAvailable: true,
   }
 }
 
 export async function listLocations() {
-  const response = await fetchJson<ListLocationResponse>("/ese/v1/location/list?type=scheduled")
+  const response = await fetchJson<ListLocationResponse>("/ese/v1/location/list?type=monitored")
   return response.hubs ?? []
 }
 

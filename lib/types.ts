@@ -53,6 +53,24 @@ export interface ApiRiskOverview {
   snapshotCount: number
 }
 
+export interface ApiWeatherRiskFactor {
+  score: number
+  primaryDriver?: string | null
+  primaryDriverLabel?: string | null
+}
+
+export interface ApiGeopoliticalSentiment {
+  positive?: number | null
+  neutral?: number | null
+  negative?: number | null
+}
+
+export interface ApiGeopoliticalRiskFactor {
+  score: number
+  articleCount?: number | null
+  sentiment?: ApiGeopoliticalSentiment
+}
+
 export interface SupplyChainHub {
   id: string
   name: string
@@ -67,6 +85,16 @@ export interface SupplyChainHub {
   lastUpdated: Date
   alerts: string[]
   apiRisk?: ApiRiskOverview
+  apiRiskFactors?: {
+    weather: ApiWeatherRiskFactor
+    geopolitical: ApiGeopoliticalRiskFactor
+  }
+  latestAssessmentDate?: Date
+  latestPrimaryDriver?: string | null
+  latestWorstInterval?: Date
+  daysAssessed?: number
+  peakDay?: Date
+  peakDayNumber?: number
   riskDataAvailable?: boolean
 }
 

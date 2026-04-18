@@ -24,8 +24,9 @@ interface RiskEventAttribute {
   date?: string
   peak_risk_score?: number
   mean_risk_score?: number
-  combined_risk_score?: number
   risk_level?: string
+  combined_risk_score?: number
+  combined_risk_level?: string
   primary_driver?: string
   worst_interval?: string
   snapshots?: Array<{
