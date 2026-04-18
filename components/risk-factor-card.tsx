@@ -158,9 +158,20 @@ export function GeopoliticalRiskCard({ risk }: GeopoliticalRiskCardProps) {
           {sentiment && (
             <div className="rounded-md bg-muted/30 px-3 py-2">
               <span className="text-xs text-muted-foreground">Sentiment Distribution</span>
-              <p className="font-medium text-foreground">
-                Positive: {sentiment.positive ?? 0} | Neutral: {sentiment.neutral ?? 0} | Negative: {sentiment.negative ?? 0}
-              </p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-2 text-center">
+                  <p className="text-[11px] uppercase tracking-wide text-emerald-300">Positive</p>
+                  <p className="text-sm font-semibold text-emerald-100">{sentiment.positive ?? 0}</p>
+                </div>
+                <div className="rounded-md border border-slate-400/20 bg-slate-400/10 px-2 py-2 text-center">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-300">Neutral</p>
+                  <p className="text-sm font-semibold text-slate-100">{sentiment.neutral ?? 0}</p>
+                </div>
+                <div className="rounded-md border border-rose-500/20 bg-rose-500/10 px-2 py-2 text-center">
+                  <p className="text-[11px] uppercase tracking-wide text-rose-300">Negative</p>
+                  <p className="text-sm font-semibold text-rose-100">{sentiment.negative ?? 0}</p>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
