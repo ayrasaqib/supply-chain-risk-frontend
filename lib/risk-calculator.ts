@@ -17,9 +17,9 @@ export function calculateCompositeRisk(factors: RiskFactors): number {
 }
 
 export function getRiskLevel(score: number): RiskLevel {
-  if (score <= 25) return "low"
-  if (score <= 50) return "elevated"
-  if (score <= 75) return "high"
+  if (score <= 20) return "low"
+  if (score <= 40) return "elevated"
+  if (score <= 60) return "high"
   return "critical"
 }
 
