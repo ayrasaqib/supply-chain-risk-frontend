@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  AlertTriangle,
   Calendar,
   Clock,
   Loader2,
@@ -26,13 +25,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/lib/auth-context"
-import {
-  generateGeopoliticalRisk,
-  generateWeatherRisk,
-  getRiskLevel,
-  getRiskLevelLabel,
-} from "@/lib/risk-calculator"
-import type { GeopoliticalRisk, RiskLevel, WeatherRisk } from "@/lib/types"
+import { getRiskLevel, getRiskLevelLabel } from "@/lib/risk-calculator"
+import type { RiskLevel } from "@/lib/types"
 import { RISK_COLORS } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -42,7 +36,6 @@ interface ForecastDay {
   riskLevel: RiskLevel
   primaryDriver: string
   worstInterval: string | null
-  snapshotCount: number
 }
 
 interface LocationAnalysis {
@@ -53,9 +46,21 @@ interface LocationAnalysis {
   region: string
   riskScore: number
   riskLevel: RiskLevel
-  mockedRiskFactors: {
-    weather: WeatherRisk
-    geopolitical: GeopoliticalRisk
+  apiRiskFactors: {
+    weather: {
+      score: number
+      primaryDriver: string | null
+      primaryDriverLabel: string | null
+    }
+    geopolitical: {
+      score: number
+      articleCount: number | null
+      sentiment: {
+        positive: number | null
+        neutral: number | null
+        negative: number | null
+      }
+    }
   }
   weeklyForecast: ForecastDay[]
   alerts: string[]
@@ -91,18 +96,103 @@ interface RiskEventAttribute {
   risk_level?: string
   primary_driver?: string
   worst_interval?: string
+  weather_risk_score?: number
+  weather_score?: number
+  weather_risk?: number
+  geopolitical_risk_score?: number
+  geopolitical_score?: number
+  geopolitical_risk?: number
+  geo_risk_score?: number
+  combined_risk_score?: number
+  combined_score?: number
+  combined_risk?: number
+  combined_risk_level?: string
+  weather_component?:
+    | number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+        primary_driver?: string
+      }
+  geopolitical_component?:
+    | number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+        article_count?: number
+        articles_count?: number
+        positive_count?: number
+        neutral_count?: number
+        negative_count?: number
+        positive_articles?: number
+        neutral_articles?: number
+        negative_articles?: number
+        sentiment_distribution?: {
+          positive?: number
+          neutral?: number
+          negative?: number
+        }
+      }
+  country?: string
+  country_scores?: Array<{
+    country?: string
+    composite_risk_score?: number
+    avg_sentiment?: number
+    article_count?: number
+    timeframes?: {
+      "7d"?: {
+        risk_score?: number
+        avg_sentiment?: number
+        article_count?: number
+        distribution?: {
+          positive?: number
+          neutral?: number
+          negative?: number
+        }
+      }
+    }
+    sentiment_distribution?: {
+      positive?: number
+      neutral?: number
+      negative?: number
+    }
+  }>
+  combined_component?:
+    | number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+        risk_level?: string
+      }
   snapshots?: Array<{
     forecast_timestamp?: string
     forecast_lead_hours?: number
     risk_score?: number
     risk_level?: string
     primary_driver?: string
+    weather_risk_score?: number
+    weather_score?: number
+    weather_risk?: number
+    geopolitical_risk_score?: number
+    geopolitical_score?: number
+    geopolitical_risk?: number
+    geo_risk_score?: number
+    combined_risk_score?: number
+    combined_score?: number
+    combined_risk?: number
   }>
   model_version?: string
   lat?: number
   lon?: number
   outlook_risk_score?: number
   outlook_risk_level?: string
+  outlook_weather_risk_score?: number
+  outlook_geopolitical_risk_score?: number
+  weather_outlook_risk_score?: number
+  geopolitical_outlook_risk_score?: number
   peak_day?: string
   peak_day_number?: number
   forecast_origin?: string
@@ -125,11 +215,6 @@ function normalizeRiskScore(score: number | undefined): number {
   if (typeof score !== "number" || Number.isNaN(score)) return 0
   const scaledScore = score <= 1 ? score * 100 : score
   return Math.max(0, Math.min(100, Math.round(scaledScore)))
-}
-
-function alignMockScore(baseScore: number, targetScore: number) {
-  const variance = Math.round((Math.random() - 0.5) * 12)
-  return Math.max(0, Math.min(100, Math.round((baseScore + targetScore) / 2 + variance)))
 }
 
 function getRegionFromCoordinates(latitude: number, longitude: number): string {
@@ -267,23 +352,123 @@ function buildAlerts(forecast: ForecastDay[], peakDay: string | null): string[] 
   return alerts.slice(0, 3)
 }
 
-function buildMockedRiskFactors(
-  latitude: number,
-  longitude: number,
-  riskScore: number
-): {
-  region: string
-  weather: WeatherRisk
-  geopolitical: GeopoliticalRisk
-} {
-  const region = getRegionFromCoordinates(latitude, longitude)
-  const weather = generateWeatherRisk(region)
-  const geopolitical = generateGeopoliticalRisk(region)
+function getFirstDefinedNumber(
+  ...values: Array<number | undefined>
+): number | undefined {
+  return values.find((value) => typeof value === "number" && !Number.isNaN(value))
+}
 
-  weather.score = alignMockScore(weather.score, riskScore)
-  geopolitical.score = alignMockScore(geopolitical.score, riskScore)
+function getComponentScore(
+  component:
+    | number
+    | {
+        risk_score?: number
+        score?: number
+        risk?: number
+      }
+    | undefined
+): number | undefined {
+  if (!component) return undefined
+  if (typeof component === "number") return component
+  return getFirstDefinedNumber(component.risk_score, component.score, component.risk)
+}
 
-  return { region, weather, geopolitical }
+function getMostCommonPrimaryDriver(forecast: ForecastDay[]): string | null {
+  const counts = new Map<string, number>()
+
+  for (const day of forecast) {
+    const driver = day.primaryDriver?.trim()
+    if (!driver) continue
+    counts.set(driver, (counts.get(driver) ?? 0) + 1)
+  }
+
+  let mostCommon: string | null = null
+  let highestCount = 0
+
+  for (const [driver, count] of counts.entries()) {
+    if (count > highestCount) {
+      mostCommon = driver
+      highestCount = count
+    }
+  }
+
+  return mostCommon
+}
+
+function getGeopoliticalArticleStats(component: RiskEventAttribute["geopolitical_component"]) {
+  if (!component || typeof component === "number") {
+    return {
+      articleCount: null,
+      sentiment: {
+        positive: null,
+        neutral: null,
+        negative: null,
+      },
+    }
+  }
+
+  return {
+    articleCount: getFirstDefinedNumber(component.article_count, component.articles_count) ?? null,
+    sentiment: {
+      positive:
+        getFirstDefinedNumber(
+          component.positive_count,
+          component.positive_articles,
+          component.sentiment_distribution?.positive
+        ) ?? null,
+      neutral:
+        getFirstDefinedNumber(
+          component.neutral_count,
+          component.neutral_articles,
+          component.sentiment_distribution?.neutral
+        ) ?? null,
+      negative:
+        getFirstDefinedNumber(
+          component.negative_count,
+          component.negative_articles,
+          component.sentiment_distribution?.negative
+        ) ?? null,
+    },
+  }
+}
+
+function getCountryScoreStats(attribute: RiskEventAttribute) {
+  const countryScores = attribute.country_scores ?? []
+  const matchingCountry =
+    countryScores.find((score) => score.country && score.country === attribute.country) ??
+    countryScores[0]
+
+  if (!matchingCountry) {
+    return {
+      articleCount: null,
+      sentiment: {
+        positive: null,
+        neutral: null,
+        negative: null,
+      },
+    }
+  }
+
+  return {
+    articleCount:
+      matchingCountry.timeframes?.["7d"]?.article_count ??
+      matchingCountry.article_count ??
+      null,
+    sentiment: {
+      positive:
+        matchingCountry.timeframes?.["7d"]?.distribution?.positive ??
+        matchingCountry.sentiment_distribution?.positive ??
+        null,
+      neutral:
+        matchingCountry.timeframes?.["7d"]?.distribution?.neutral ??
+        matchingCountry.sentiment_distribution?.neutral ??
+        null,
+      negative:
+        matchingCountry.timeframes?.["7d"]?.distribution?.negative ??
+        matchingCountry.sentiment_distribution?.negative ??
+        null,
+    },
+  }
 }
 
 function mapRiskResponseToAnalysis(
@@ -300,10 +485,19 @@ function mapRiskResponseToAnalysis(
     .sort((left, right) => (left.attribute?.day ?? 0) - (right.attribute?.day ?? 0))
 
   const outlookEvent = events.find((event) => event.event_type === "seven_day_outlook")
+  const geopoliticalEvent = events.find((event) => event.event_type === "geopolitical_risk_assessment")
 
   const weeklyForecast: ForecastDay[] = dailyEvents.map((event) => {
     const attribute = event.attribute ?? {}
-    const score = normalizeRiskScore(attribute.peak_risk_score ?? attribute.mean_risk_score)
+    const score = normalizeRiskScore(
+      getFirstDefinedNumber(
+        attribute.combined_risk_score,
+        attribute.combined_score,
+        attribute.combined_risk,
+        attribute.peak_risk_score,
+        attribute.mean_risk_score
+      )
+    )
 
     return {
       date: new Date(attribute.date ?? ""),
@@ -311,39 +505,108 @@ function mapRiskResponseToAnalysis(
       riskLevel: mapApiRiskLevel(attribute.risk_level, score),
       primaryDriver: attribute.primary_driver ?? "Unknown",
       worstInterval: attribute.worst_interval ?? null,
-      snapshotCount: attribute.snapshots?.length ?? 0,
     }
   })
 
   const outlook = outlookEvent?.attribute ?? {}
   const latestAssessment = dailyEvents[0]?.attribute ?? {}
   const overallScore = normalizeRiskScore(
-    outlook.outlook_risk_score ?? latestAssessment.peak_risk_score ?? latestAssessment.mean_risk_score
+    getFirstDefinedNumber(
+      getComponentScore(outlook.combined_component),
+      outlook.outlook_risk_score,
+      outlook.combined_risk_score,
+      outlook.combined_score,
+      outlook.combined_risk,
+      latestAssessment.combined_risk_score,
+      latestAssessment.combined_score,
+      latestAssessment.combined_risk,
+      latestAssessment.peak_risk_score,
+      latestAssessment.mean_risk_score
+    )
   )
   const overallRiskLevel = mapApiRiskLevel(
-    outlook.outlook_risk_level ?? latestAssessment.risk_level,
+    outlook.outlook_risk_level ??
+      outlook.combined_risk_level ??
+      (typeof outlook.combined_component === "object"
+        ? outlook.combined_component.risk_level
+        : null) ??
+      latestAssessment.risk_level,
     overallScore
   )
-  const mockedRiskFactors = buildMockedRiskFactors(
-    outlook.lat ?? latitude,
-    outlook.lon ?? longitude,
-    overallScore
+  const weatherScore = normalizeRiskScore(
+    getFirstDefinedNumber(
+      getComponentScore(outlook.weather_component),
+      outlook.outlook_weather_risk_score,
+      outlook.weather_outlook_risk_score,
+      latestAssessment.weather_risk_score,
+      latestAssessment.weather_score,
+      latestAssessment.weather_risk,
+      ...((latestAssessment.snapshots ?? []).map((snapshot) =>
+        getFirstDefinedNumber(
+          snapshot.weather_risk_score,
+          snapshot.weather_score,
+          snapshot.weather_risk
+        )
+      ))
+    )
   )
+  const geopoliticalScore = normalizeRiskScore(
+    getFirstDefinedNumber(
+      getComponentScore(outlook.geopolitical_component),
+      outlook.outlook_geopolitical_risk_score,
+      outlook.geopolitical_outlook_risk_score,
+      latestAssessment.geopolitical_risk_score,
+      latestAssessment.geopolitical_score,
+      latestAssessment.geopolitical_risk,
+      latestAssessment.geo_risk_score,
+      ...((latestAssessment.snapshots ?? []).map((snapshot) =>
+        getFirstDefinedNumber(
+          snapshot.geopolitical_risk_score,
+          snapshot.geopolitical_score,
+          snapshot.geopolitical_risk,
+          snapshot.geo_risk_score
+        )
+      ))
+    )
+  )
+  const resolvedLatitude = outlook.lat ?? latitude
+  const resolvedLongitude = outlook.lon ?? longitude
+  const weatherPrimaryDriver = getMostCommonPrimaryDriver(weeklyForecast)
+  const geopoliticalComponentStats = getGeopoliticalArticleStats(outlook.geopolitical_component)
+  const geopoliticalCountryStats = geopoliticalEvent?.attribute
+    ? getCountryScoreStats(geopoliticalEvent.attribute)
+    : getCountryScoreStats(outlook)
 
   return {
     hubId,
     name,
     location: {
-      latitude: outlook.lat ?? latitude,
-      longitude: outlook.lon ?? longitude,
+      latitude: resolvedLatitude,
+      longitude: resolvedLongitude,
     },
     type: "dynamic",
-    region: mockedRiskFactors.region,
+    region: getRegionFromCoordinates(resolvedLatitude, resolvedLongitude),
     riskScore: overallScore,
     riskLevel: overallRiskLevel,
-    mockedRiskFactors: {
-      weather: mockedRiskFactors.weather,
-      geopolitical: mockedRiskFactors.geopolitical,
+    apiRiskFactors: {
+      weather: {
+        score: weatherScore,
+        primaryDriver: weatherPrimaryDriver,
+        primaryDriverLabel: weatherPrimaryDriver ? "Most Common Driver" : null,
+      },
+      geopolitical: {
+        score: geopoliticalScore,
+        articleCount:
+          geopoliticalCountryStats.articleCount ?? geopoliticalComponentStats.articleCount,
+        sentiment: {
+          positive:
+            geopoliticalCountryStats.sentiment.positive ?? geopoliticalComponentStats.sentiment.positive,
+          neutral:
+            geopoliticalCountryStats.sentiment.neutral ?? geopoliticalComponentStats.sentiment.neutral,
+          negative:
+            geopoliticalCountryStats.sentiment.negative ?? geopoliticalComponentStats.sentiment.negative,
+        },
+      },
     },
     weeklyForecast,
     alerts: buildAlerts(weeklyForecast, outlook.peak_day ?? null),
@@ -393,13 +656,11 @@ function DailyRiskRow({ daily, isToday }: { daily: ForecastDay; isToday: boolean
           <p className="text-xs font-medium" style={{ color }}>
             {getRiskLevelLabel(daily.riskLevel)}
           </p>
-          <p className="truncate text-xs text-muted-foreground">{daily.primaryDriver}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            Weather primary driver: {daily.primaryDriver}
+          </p>
         </div>
 
-        <div className="text-right text-xs text-muted-foreground">
-          <p>{daily.snapshotCount} snapshots</p>
-          <p>{formatDateTimeLabel(daily.worstInterval)}</p>
-        </div>
       </div>
     </div>
   )
@@ -689,7 +950,7 @@ export default function CustomLocationPage() {
                     <h2 className="text-lg font-bold">{hub.name}</h2>
                     <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-3.5 w-3.5" />
-                      <span>{hub.hubId} • Dynamic location</span>
+                      <span>Dynamic location</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
@@ -718,29 +979,10 @@ export default function CustomLocationPage() {
                             <RiskScoreGauge score={hub.riskScore} size="lg" />
                           </div>
 
-                          {hub.alerts.length > 0 && (
-                            <div className="space-y-2">
-                              <h3 className="flex items-center gap-2 text-sm font-semibold">
-                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                Active Alerts
-                              </h3>
-                              <div className="space-y-2">
-                                {hub.alerts.map((alert, index) => (
-                                  <div
-                                    key={index}
-                                    className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
-                                  >
-                                    {alert}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
                           <div className="space-y-3">
                             <h3 className="text-sm font-semibold">Risk Breakdown</h3>
-                            <WeatherRiskCard risk={hub.mockedRiskFactors.weather} />
-                            <GeopoliticalRiskCard risk={hub.mockedRiskFactors.geopolitical} />
+                            <WeatherRiskCard risk={hub.apiRiskFactors.weather} />
+                            <GeopoliticalRiskCard risk={hub.apiRiskFactors.geopolitical} />
                           </div>
 
                           <div className="space-y-3">
@@ -751,12 +993,12 @@ export default function CustomLocationPage() {
                                 <p className="font-medium">{formatDateLabel(hub.latestAssessmentDate)}</p>
                               </div>
                               <div className="rounded-md bg-muted/30 px-3 py-2">
-                                <span className="text-xs text-muted-foreground">Primary Driver</span>
-                                <p className="font-medium">{hub.latestPrimaryDriver ?? "Unavailable"}</p>
-                              </div>
-                              <div className="rounded-md bg-muted/30 px-3 py-2">
                                 <span className="text-xs text-muted-foreground">Worst Interval</span>
                                 <p className="font-medium">{formatDateTimeLabel(hub.latestWorstInterval)}</p>
+                              </div>
+                              <div className="rounded-md bg-muted/30 px-3 py-2">
+                                <span className="text-xs text-muted-foreground">Days Assessed</span>
+                                <p className="font-medium">{hub.daysAssessed ?? "Unavailable"}</p>
                               </div>
                               <div className="rounded-md bg-muted/30 px-3 py-2">
                                 <span className="text-xs text-muted-foreground">Peak Day</span>
@@ -773,14 +1015,6 @@ export default function CustomLocationPage() {
                             <h3 className="text-sm font-semibold">Location Information</h3>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="rounded-md bg-muted/30 px-3 py-2">
-                                <span className="text-xs text-muted-foreground">Hub ID</span>
-                                <p className="font-medium">{hub.hubId}</p>
-                              </div>
-                              <div className="rounded-md bg-muted/30 px-3 py-2">
-                                <span className="text-xs text-muted-foreground">Type</span>
-                                <p className="font-medium capitalize">{hub.type}</p>
-                              </div>
-                              <div className="rounded-md bg-muted/30 px-3 py-2">
                                 <span className="text-xs text-muted-foreground">Region</span>
                                 <p className="font-medium">{hub.region}</p>
                               </div>
@@ -789,10 +1023,6 @@ export default function CustomLocationPage() {
                                 <p className="font-mono text-xs">
                                   {hub.location.latitude.toFixed(4)}, {hub.location.longitude.toFixed(4)}
                                 </p>
-                              </div>
-                              <div className="rounded-md bg-muted/30 px-3 py-2">
-                                <span className="text-xs text-muted-foreground">Days Assessed</span>
-                                <p className="font-medium">{hub.daysAssessed ?? "Unavailable"}</p>
                               </div>
                             </div>
                           </div>
@@ -811,10 +1041,6 @@ export default function CustomLocationPage() {
                               <div className="rounded-md bg-muted/30 px-3 py-2">
                                 <span className="text-xs text-muted-foreground">Model Version</span>
                                 <p className="font-medium">{hub.modelVersion ?? "Unavailable"}</p>
-                              </div>
-                              <div className="rounded-md bg-muted/30 px-3 py-2">
-                                <span className="text-xs text-muted-foreground">Forecast Origin</span>
-                                <p className="font-medium">{formatDateTimeLabel(hub.forecastOrigin)}</p>
                               </div>
                             </div>
                           </div>

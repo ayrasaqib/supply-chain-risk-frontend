@@ -50,6 +50,10 @@ interface RiskLocationResponse {
   data_source?: string
   dataset_type?: string
   dataset_id?: string
+  time_object?: {
+    timestamp?: string
+    timezone?: string
+  }
   events?: RiskEvent[]
 }
 
@@ -65,6 +69,46 @@ class ApiRequestError extends Error {
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isTransientBackendError(error: ApiRequestError) {
+  return error.status === 503 || error.status === 502 || error.status === 504
+}
+
+function getSydneyDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date)
+}
+
+function getRiskResponseDateKey(response: RiskLocationResponse): string | null {
+  const dailyAssessment = response.events?.find(
+    (event) => event.event_type === "daily_risk_assessment" && event.attribute?.date
+  )
+
+  if (dailyAssessment?.attribute?.date) {
+    return dailyAssessment.attribute.date
+  }
+
+  if (response.time_object?.timestamp) {
+    const parsedTimestamp = new Date(response.time_object.timestamp)
+
+    if (!Number.isNaN(parsedTimestamp.getTime())) {
+      return getSydneyDateKey(parsedTimestamp)
+    }
+  }
+
+  return null
+}
+
+function isCurrentDayRiskAnalysis(response: RiskLocationResponse) {
+  const responseDateKey = getRiskResponseDateKey(response)
+  const todayKey = getSydneyDateKey(new Date())
+
+  return responseDateKey === todayKey
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -104,7 +148,7 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function fetchRiskAnalysisWithRetry(hubId: string): Promise<RiskLocationResponse> {
-  for (let attempt = 0; attempt < 8; attempt++) {
+  for (let attempt = 0; attempt < 12; attempt++) {
     try {
       return await apiRequest<RiskLocationResponse>(`/ese/v1/risk/location/${hubId}`)
     } catch (error) {
@@ -114,17 +158,58 @@ async function fetchRiskAnalysisWithRetry(hubId: string): Promise<RiskLocationRe
 
       const shouldRetry =
         error.status === 404 ||
-        (error.status === 400 && error.message.toLowerCase().includes("processed data"))
+        (error.status === 400 && error.message.toLowerCase().includes("processed data")) ||
+        isTransientBackendError(error)
 
-      if (!shouldRetry || attempt === 7) {
+      if (!shouldRetry || attempt === 11) {
+        throw error
+      }
+
+      await delay(2500)
+    }
+  }
+
+  throw new Error("Risk analysis failed")
+}
+
+async function ingestWeatherWithRetry(hubId: string) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await apiRequest<{ message: string }>(`/ese/v1/ingest/weather/${hubId}`, {
+        method: "POST",
+      })
+    } catch (error) {
+      if (!(error instanceof ApiRequestError)) {
+        throw error
+      }
+
+      if (!isTransientBackendError(error) || attempt === 4) {
         throw error
       }
 
       await delay(2000)
     }
   }
+}
 
-  throw new Error("Risk analysis failed")
+async function fetchExistingRiskAnalysis(hubId: string): Promise<RiskLocationResponse | null> {
+  try {
+    return await apiRequest<RiskLocationResponse>(`/ese/v1/risk/location/${hubId}`)
+  } catch (error) {
+    if (!(error instanceof ApiRequestError)) {
+      throw error
+    }
+
+    const isMissingProcessedData =
+      error.status === 404 ||
+      (error.status === 400 && error.message.toLowerCase().includes("processed data"))
+
+    if (isMissingProcessedData) {
+      return null
+    }
+
+    throw error
+  }
 }
 
 export async function POST(request: Request) {
@@ -155,9 +240,16 @@ export async function POST(request: Request) {
       }),
     })
 
-    await apiRequest<{ message: string }>(`/ese/v1/ingest/weather/${createResponse.hub_id}`, {
-      method: "POST",
-    })
+    const existingRiskResponse = await fetchExistingRiskAnalysis(createResponse.hub_id)
+
+    if (existingRiskResponse && isCurrentDayRiskAnalysis(existingRiskResponse)) {
+      return NextResponse.json({
+        hub_id: createResponse.hub_id,
+        risk: existingRiskResponse,
+      })
+    }
+
+    await ingestWeatherWithRetry(createResponse.hub_id)
 
     const riskResponse = await fetchRiskAnalysisWithRetry(createResponse.hub_id)
 
@@ -167,6 +259,16 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     if (error instanceof ApiRequestError) {
+      if (isTransientBackendError(error)) {
+        return NextResponse.json(
+          {
+            error:
+              "The risk analysis service is temporarily unavailable right now. Please try again in a moment.",
+          },
+          { status: error.status }
+        )
+      }
+
       return NextResponse.json({ error: error.message }, { status: error.status })
     }
 
