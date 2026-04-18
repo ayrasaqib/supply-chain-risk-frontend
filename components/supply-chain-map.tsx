@@ -32,6 +32,7 @@ interface SupplyChainMapProps {
   selectedHub: SupplyChainHub | null
   selectedRegion: string | null
   onSelectHub: (hub: SupplyChainHub | null) => void
+  enableClustering?: boolean
 }
 
 interface Position {
@@ -153,13 +154,14 @@ export function SupplyChainMap({
   selectedHub,
   selectedRegion,
   onSelectHub,
+  enableClustering = true,
 }: SupplyChainMapProps) {
   const [position, setPosition] = useState<Position>({
     coordinates: DEFAULT_MAP_POSITION.center,
     zoom: DEFAULT_MAP_POSITION.zoom,
   })
 
-  const shouldCluster = !selectedRegion && hubs.length > 20
+  const shouldCluster = enableClustering && !selectedRegion && hubs.length > 20
   const markerItems = useMemo(
     () => buildMarkerItems(hubs, shouldCluster, position.zoom),
     [hubs, position.zoom, shouldCluster]
