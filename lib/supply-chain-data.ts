@@ -190,9 +190,15 @@ export function calculateRiskSummary(hubs: SupplyChainHub[]): RiskSummary {
   }
 
   let totalRisk = 0
+  let availableRiskCount = 0
 
   for (const hub of hubs) {
+    if (hub.riskDataAvailable === false) {
+      continue
+    }
+
     totalRisk += hub.riskScore
+    availableRiskCount++
 
     switch (hub.riskLevel) {
       case "low":
@@ -210,19 +216,13 @@ export function calculateRiskSummary(hubs: SupplyChainHub[]): RiskSummary {
     }
   }
 
-  summary.averageRisk = Math.round(totalRisk / hubs.length)
+  summary.averageRisk = availableRiskCount > 0 ? Math.round(totalRisk / availableRiskCount) : 0
 
   return summary
 }
 
-// Get hub definitions for static purposes
-export function getHubDefinitions(): HubDefinition[] {
-  return HUB_DEFINITIONS
-}
-
-
 // Determine region from coordinates
-function getRegionFromCoordinates(latitude: number, longitude: number): string {
+export function getRegionFromCoordinates(latitude: number, longitude: number): string {
   // Simplified region detection based on coordinates
   if (latitude >= 20 && latitude <= 55 && longitude >= 100 && longitude <= 150) {
     return "East Asia"

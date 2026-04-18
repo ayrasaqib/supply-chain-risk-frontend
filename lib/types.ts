@@ -35,9 +35,22 @@ export interface DailyRisk {
   date: Date
   riskScore: number
   riskLevel: RiskLevel
-  weather: WeatherRisk
-  geopolitical: GeopoliticalRisk
+  weather?: WeatherRisk
+  geopolitical?: GeopoliticalRisk
   primaryDriver: string
+}
+
+export interface ApiRiskOverview {
+  dataSource: string
+  datasetType: string
+  modelVersion?: string
+  forecastOrigin?: Date
+  peakDay?: Date
+  peakDayNumber?: number
+  daysAssessed?: number
+  currentDate?: Date
+  worstInterval?: Date
+  snapshotCount: number
 }
 
 export interface SupplyChainHub {
@@ -53,6 +66,8 @@ export interface SupplyChainHub {
   weeklyForecast: DailyRisk[]
   lastUpdated: Date
   alerts: string[]
+  apiRisk?: ApiRiskOverview
+  riskDataAvailable?: boolean
 }
 
 export interface RiskSummary {
