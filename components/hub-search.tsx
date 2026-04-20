@@ -17,12 +17,22 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import type { SupplyChainHub } from "@/lib/types"
+import type { RiskLevel } from "@/lib/types"
 import { RISK_COLORS } from "@/lib/types"
 
+export interface SearchHubOption {
+  id: string
+  name: string
+  country: string
+  region: string
+  riskScore: number | null
+  riskLevel: RiskLevel | null
+  riskDataAvailable: boolean
+}
+
 interface HubSearchProps {
-  hubs: SupplyChainHub[]
-  onSelectHub: (hub: SupplyChainHub) => void
+  hubs: SearchHubOption[]
+  onSelectHub: (hub: SearchHubOption) => void
 }
 
 export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
@@ -32,16 +42,20 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
   const filteredHubs = useMemo(() => {
     if (!searchValue) return hubs
     const lowerSearch = searchValue.toLowerCase()
-    return hubs.filter((hub) => hub.name.toLowerCase().includes(lowerSearch))
+    return hubs.filter((hub) =>
+      [hub.name, hub.country, hub.region, hub.id].some((value) =>
+        value.toLowerCase().includes(lowerSearch)
+      )
+    )
   }, [hubs, searchValue])
 
-  const handleSelectHub = (hub: SupplyChainHub) => {
+  const handleSelectHub = (hub: SearchHubOption) => {
     onSelectHub(hub)
     setSearchOpen(false)
     setSearchValue("")
   }
 
-  const getSecondaryLabel = (hub: SupplyChainHub) => {
+  const getSecondaryLabel = (hub: SearchHubOption) => {
     if (hub.country === "Custom Location") {
       return `${hub.id} • ${hub.region}`
     }
@@ -77,13 +91,13 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
               {filteredHubs.map((hub) => (
                 <CommandItem
                   key={hub.id}
-                  value={hub.name}
+                  value={`${hub.name} ${hub.country} ${hub.region} ${hub.id}`}
                   onSelect={() => handleSelectHub(hub)}
                   className="flex cursor-pointer items-center gap-3"
                 >
                   <div
                     className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: RISK_COLORS[hub.riskLevel] }}
+                    style={{ backgroundColor: hub.riskLevel ? RISK_COLORS[hub.riskLevel] : "#64748b" }}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{hub.name}</p>
@@ -95,11 +109,11 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
                     variant="secondary"
                     className="shrink-0 px-1.5 py-0 text-xs"
                     style={{
-                      backgroundColor: `${RISK_COLORS[hub.riskLevel]}20`,
-                      color: RISK_COLORS[hub.riskLevel],
+                      backgroundColor: `${hub.riskLevel ? RISK_COLORS[hub.riskLevel] : "#64748b"}20`,
+                      color: hub.riskLevel ? RISK_COLORS[hub.riskLevel] : "#cbd5e1",
                     }}
                   >
-                    {hub.riskScore}
+                    {hub.riskScore ?? "Load"}
                   </Badge>
                 </CommandItem>
               ))}
