@@ -9,6 +9,7 @@ interface MapControlsProps {
   viewMode: HubViewMode
   selectedRegion: string | null
   regions: string[]
+  topHubCount: number
   onViewModeChange: (mode: HubViewMode) => void
   onRegionChange: (region: string | null) => void
 }
@@ -17,6 +18,7 @@ export function MapControls({
   viewMode,
   selectedRegion,
   regions,
+  topHubCount,
   onViewModeChange,
   onRegionChange,
 }: MapControlsProps) {
@@ -34,7 +36,7 @@ export function MapControls({
           onClick={() => onViewModeChange("top")}
         >
           <Layers3 className="h-4 w-4" />
-          Top 15
+          Top {topHubCount}
         </Button>
       </div>
 
@@ -45,9 +47,12 @@ export function MapControls({
           variant="secondary"
           className={cn(
             "h-8 px-2 text-[11px] border border-white/10 bg-white/8 text-slate-100 hover:bg-white/12",
-            selectedRegion === null && "bg-white/18 text-white hover:bg-white/22"
+            selectedRegion === null && viewMode === "all" && "bg-white/18 text-white hover:bg-white/22"
           )}
-          onClick={() => onRegionChange(null)}
+          onClick={() => {
+            onViewModeChange("all")
+            onRegionChange(null)
+          }}
         >
           Global
         </Button>

@@ -21,6 +21,7 @@ interface RiskAnalysisOverviewProps {
   daysAssessed?: number | null
   peakDay?: string | Date | null
   peakDayNumber?: number | null
+  country?: string | null
   region: string
   latitude: number
   longitude: number
@@ -66,6 +67,7 @@ export function RiskAnalysisOverview({
   daysAssessed,
   peakDay,
   peakDayNumber,
+  country,
   region,
   latitude,
   longitude,
@@ -117,6 +119,10 @@ export function RiskAnalysisOverview({
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">Location Information</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="rounded-md bg-muted/30 px-3 py-2">
+            <span className="text-xs text-muted-foreground">Country</span>
+            <p className="font-medium">{country ?? "Unavailable"}</p>
+          </div>
           <div className="rounded-md bg-muted/30 px-3 py-2">
             <span className="text-xs text-muted-foreground">Region</span>
             <p className="font-medium">{region}</p>

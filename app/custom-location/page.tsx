@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/lib/auth-context"
+import type { RiskEvent, RiskEventAttribute, RiskLocationResponse } from "@/lib/risk-api-types"
 import { getRiskLevel } from "@/lib/risk-calculator"
 import type { RiskLevel } from "@/lib/types"
 
@@ -36,6 +37,7 @@ interface LocationAnalysis {
   hubId: string
   name: string
   location: { latitude: number; longitude: number }
+  country: string
   type: string
   region: string
   graphUrl: string | null
@@ -82,135 +84,6 @@ interface AnalyzeLocationResponse {
   graph_url?: string | null
 }
 
-interface RiskEventAttribute {
-  hub_id?: string
-  hub_name?: string
-  day?: number
-  date?: string
-  peak_risk_score?: number
-  mean_risk_score?: number
-  risk_level?: string
-  primary_driver?: string
-  worst_interval?: string
-  weather_risk_score?: number
-  weather_score?: number
-  weather_risk?: number
-  geopolitical_risk_score?: number
-  geopolitical_score?: number
-  geopolitical_risk?: number
-  geo_risk_score?: number
-  combined_risk_score?: number
-  combined_risk_level?: string
-  weather_component?:
-    | number
-    | {
-        risk_score?: number
-        score?: number
-        risk?: number
-        primary_driver?: string
-      }
-  geopolitical_component?:
-    | number
-    | {
-        risk_score?: number
-        score?: number
-        risk?: number
-        article_count?: number
-        articles_count?: number
-        positive_count?: number
-        neutral_count?: number
-        negative_count?: number
-        positive_articles?: number
-        neutral_articles?: number
-        negative_articles?: number
-        sentiment_distribution?: {
-          positive?: number
-          neutral?: number
-          negative?: number
-        }
-      }
-  country?: string
-  country_scores?: Array<{
-    country?: string
-    composite_risk_score?: number
-    avg_sentiment?: number
-    article_count?: number
-    timeframes?: {
-      "7d"?: {
-        risk_score?: number
-        avg_sentiment?: number
-        article_count?: number
-        distribution?: {
-          positive?: number
-          neutral?: number
-          negative?: number
-        }
-      }
-    }
-    sentiment_distribution?: {
-      positive?: number
-      neutral?: number
-      negative?: number
-    }
-  }>
-  combined_component?:
-    | number
-    | {
-        risk_score?: number
-        score?: number
-        risk?: number
-        risk_level?: string
-      }
-  snapshots?: Array<{
-    forecast_timestamp?: string
-    forecast_lead_hours?: number
-    risk_score?: number
-    risk_level?: string
-    primary_driver?: string
-    weather_risk_score?: number
-    weather_score?: number
-    weather_risk?: number
-    geopolitical_risk_score?: number
-    geopolitical_score?: number
-    geopolitical_risk?: number
-    geo_risk_score?: number
-    combined_risk_score?: number
-    combined_score?: number
-    combined_risk?: number
-  }>
-  model_version?: string
-  lat?: number
-  lon?: number
-  outlook_risk_score?: number
-  outlook_risk_level?: string
-  outlook_weather_risk_score?: number
-  outlook_geopolitical_risk_score?: number
-  weather_outlook_risk_score?: number
-  geopolitical_outlook_risk_score?: number
-  peak_day?: string
-  peak_day_number?: number
-  forecast_origin?: string
-  days_assessed?: number
-}
-
-interface RiskEvent {
-  time_object?: {
-    timestamp?: string
-    duration?: number
-    duration_unit?: string
-    timezone?: string
-  }
-  event_type?: string
-  attribute?: RiskEventAttribute
-}
-
-interface RiskLocationResponse {
-  data_source?: string
-  dataset_type?: string
-  dataset_id?: string
-  events?: RiskEvent[]
-}
-
 function normalizeRiskScore(score: number | undefined): number {
   if (typeof score !== "number" || Number.isNaN(score)) return 0
   const scaledScore = score <= 1 ? score * 100 : score
@@ -234,7 +107,7 @@ function getRegionFromCoordinates(latitude: number, longitude: number): string {
     return "Middle East"
   }
   if (latitude >= 5 && latitude <= 35 && longitude >= 65 && longitude <= 95) {
-    return "South Asia"
+    return "Southeast Asia"
   }
   if (latitude >= -60 && latitude <= 15 && longitude >= -85 && longitude <= -30) {
     return "South America"
@@ -457,6 +330,28 @@ function getCountryScoreStats(attribute: RiskEventAttribute) {
   }
 }
 
+function resolveCountryName(
+  latestAssessment: RiskEventAttribute,
+  outlook: RiskEventAttribute,
+  geopoliticalEvent?: RiskEvent
+) {
+  const countryCandidates = [
+    geopoliticalEvent?.attribute?.country,
+    latestAssessment.country,
+    outlook.country,
+  ]
+
+  for (const candidate of countryCandidates) {
+    const normalizedCountry = candidate?.trim()
+
+    if (normalizedCountry) {
+      return normalizedCountry
+    }
+  }
+
+  return "Custom Location"
+}
+
 function mapRiskResponseToAnalysis(
   response: RiskLocationResponse,
   hubId: string,
@@ -473,6 +368,7 @@ function mapRiskResponseToAnalysis(
 
   const outlookEvent = events.find((event) => event.event_type === "seven_day_outlook")
   const geopoliticalEvent = events.find((event) => event.event_type === "geopolitical_risk_assessment")
+  const geopoliticalAttribute = geopoliticalEvent?.attribute
 
   const weeklyForecast: ForecastDay[] = dailyEvents.map((event) => {
     const attribute = event.attribute ?? {}
@@ -537,6 +433,8 @@ function mapRiskResponseToAnalysis(
   )
   const geopoliticalScore = normalizeRiskScore(
     getFirstDefinedNumber(
+      geopoliticalAttribute?.geopolitical_risk_score,
+      getComponentScore(geopoliticalAttribute?.geopolitical_component),
       getComponentScore(outlook.geopolitical_component),
       outlook.outlook_geopolitical_risk_score,
       outlook.geopolitical_outlook_risk_score,
@@ -558,9 +456,10 @@ function mapRiskResponseToAnalysis(
   const resolvedLongitude = outlook.lon ?? longitude
   const weatherPrimaryDriver = getMostCommonPrimaryDriver(weeklyForecast)
   const geopoliticalComponentStats = getGeopoliticalArticleStats(outlook.geopolitical_component)
-  const geopoliticalCountryStats = geopoliticalEvent?.attribute
-    ? getCountryScoreStats(geopoliticalEvent.attribute)
+  const geopoliticalCountryStats = geopoliticalAttribute
+    ? getCountryScoreStats(geopoliticalAttribute)
     : getCountryScoreStats(outlook)
+  const country = resolveCountryName(latestAssessment, outlook, geopoliticalEvent)
 
   return {
     hubId,
@@ -569,6 +468,7 @@ function mapRiskResponseToAnalysis(
       latitude: resolvedLatitude,
       longitude: resolvedLongitude,
     },
+    country,
     type: "dynamic",
     region: getRegionFromCoordinates(resolvedLatitude, resolvedLongitude),
     graphUrl,
@@ -886,6 +786,7 @@ export default function CustomLocationPage() {
                           daysAssessed={hub.daysAssessed}
                           peakDay={hub.peakDay}
                           peakDayNumber={hub.peakDayNumber}
+                          country={hub.country}
                           region={hub.region}
                           latitude={hub.location.latitude}
                           longitude={hub.location.longitude}

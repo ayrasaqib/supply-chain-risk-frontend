@@ -1,4 +1,8 @@
-import { getRegionFromCoordinates } from "./supply-chain-data"
+import type {
+  RiskEvent as RiskEventResponse,
+  RiskEventAttribute as RiskEventAttributeResponse,
+  RiskLocationResponse,
+} from "./risk-api-types"
 import type {
   ApiRiskOverview,
   DailyRisk,
@@ -19,6 +23,213 @@ const STATIC_HUB_METADATA: Record<string, { country: string; region: string; typ
   H008: { country: "Brazil", region: "South America", type: "port" },
 }
 
+const REGION_PRIORITY_ORDER = [
+  "Africa",
+  "East Asia",
+  "Europe",
+  "Middle East",
+  "North America",
+  "Oceania",
+  "South America",
+  "Southeast Asia",
+  "Other",
+] as const
+
+const COUNTRY_TO_REGION: Record<string, string> = {
+  albania: "Europe",
+  algeria: "Europe",
+  "american samoa": "Other",
+  angola: "Africa",
+  anguilla: "North America",
+  "antigua and barbuda": "North America",
+  argentina: "South America",
+  aruba: "South America",
+  australia: "Oceania",
+  azerbaijan: "Middle East",
+  bahrain: "Middle East",
+  bangladesh: "Southeast Asia",
+  barbados: "South America",
+  belgium: "Europe",
+  belize: "North America",
+  benin: "Africa",
+  brazil: "South America",
+  "british virgin islands": "North America",
+  "brunei darussalam": "Southeast Asia",
+  bulgaria: "Europe",
+  "cabo verde": "Other",
+  cambodia: "Southeast Asia",
+  cameroon: "Africa",
+  canada: "North America",
+  "cayman islands": "North America",
+  chile: "South America",
+  china: "East Asia",
+  colombia: "South America",
+  comoros: "Africa",
+  "cook islands": "Other",
+  "costa rica": "South America",
+  "cote d'ivoire": "Africa",
+  croatia: "Europe",
+  cuba: "North America",
+  curacao: "South America",
+  cyprus: "Middle East",
+  "democratic republic of the congo": "Africa",
+  denmark: "Europe",
+  djibouti: "Middle East",
+  dominica: "North America",
+  "dominican republic": "North America",
+  ecuador: "South America",
+  egypt: "Middle East",
+  "el salvador": "Other",
+  "equatorial guinea": "Africa",
+  eritrea: "Middle East",
+  estonia: "Europe",
+  "faroe islands": "Europe",
+  fiji: "Oceania",
+  finland: "Europe",
+  france: "Europe",
+  "french guiana": "South America",
+  "french polynesia": "Other",
+  gabon: "Africa",
+  georgia: "Middle East",
+  germany: "Europe",
+  ghana: "Africa",
+  gibraltar: "Europe",
+  "great britain": "Europe",
+  greece: "Europe",
+  grenada: "South America",
+  guadeloupe: "North America",
+  guam: "Other",
+  guatemala: "Other",
+  guinea: "Africa",
+  "guinea-bissau": "Africa",
+  guyana: "South America",
+  haiti: "North America",
+  honduras: "North America",
+  "hong kong sar": "East Asia",
+  "hong kong": "East Asia",
+  iceland: "Other",
+  india: "Southeast Asia",
+  indonesia: "Southeast Asia",
+  iran: "Middle East",
+  iraq: "Middle East",
+  ireland: "Europe",
+  israel: "Middle East",
+  italy: "Europe",
+  jamaica: "North America",
+  japan: "East Asia",
+  jordan: "Middle East",
+  kazakhstan: "Middle East",
+  kenya: "Africa",
+  kiribati: "Other",
+  korea: "East Asia",
+  kuwait: "Middle East",
+  latvia: "Europe",
+  lebanon: "Middle East",
+  liberia: "Africa",
+  libya: "Africa",
+  lithuania: "Europe",
+  "macao sar": "East Asia",
+  "macao": "East Asia",
+  madagascar: "Africa",
+  malaysia: "Southeast Asia",
+  maldives: "Southeast Asia",
+  malta: "Europe",
+  "marshall islands": "Other",
+  martinique: "South America",
+  mauritania: "Africa",
+  mauritius: "Other",
+  mayotte: "Africa",
+  mexico: "North America",
+  micronesia: "Other",
+  moldova: "Europe",
+  montenegro: "Europe",
+  montserrat: "North America",
+  morocco: "Africa",
+  mozambique: "Africa",
+  myanmar: "Southeast Asia",
+  namibia: "Africa",
+  nauru: "Other",
+  "new caledonia": "Oceania",
+  "new zealand": "Oceania",
+  nicaragua: "Other",
+  nigeria: "Africa",
+  "northern mariana islands": "Other",
+  norway: "Europe",
+  oman: "Middle East",
+  pakistan: "Middle East",
+  palau: "Southeast Asia",
+  panama: "South America",
+  "papua new guinea": "Other",
+  peru: "South America",
+  philippines: "Southeast Asia",
+  poland: "Europe",
+  portugal: "Europe",
+  "puerto rico": "North America",
+  qatar: "Middle East",
+  "republic of congo": "Africa",
+  "republic of korea": "East Asia",
+  reunion: "Other",
+  romania: "Europe",
+  "russian federation": "Europe",
+  "saint eustatius and saba": "North America",
+  "saint martin": "North America",
+  "saint-barthelemy": "North America",
+  samoa: "Other",
+  "sao tome and principe": "Africa",
+  "saudi arabia": "Middle East",
+  senegal: "Africa",
+  seychelles: "Other",
+  "sierra leone": "Africa",
+  "sint maarten": "North America",
+  slovenia: "Europe",
+  "solomon islands": "Other",
+  somalia: "Africa",
+  "south africa": "Africa",
+  spain: "Europe",
+  "sri lanka": "Southeast Asia",
+  "st kitts and nevis": "North America",
+  "st lucia": "South America",
+  "st vincent and the grenadines": "South America",
+  sudan: "Middle East",
+  suriname: "South America",
+  sweden: "Europe",
+  syria: "Europe",
+  "taiwan province of china": "East Asia",
+  taiwan: "East Asia",
+  tanzania: "Africa",
+  thailand: "Southeast Asia",
+  "the bahamas": "North America",
+  "the gambia": "Africa",
+  "the netherlands": "Europe",
+  netherlands: "Europe",
+  "timor-leste": "Southeast Asia",
+  togo: "Africa",
+  tonga: "Other",
+  "trinidad and tobago": "South America",
+  tunisia: "Africa",
+  turkiye: "Europe",
+  turkey: "Europe",
+  turkmenistan: "Middle East",
+  "turks and caicos islands": "North America",
+  tuvalu: "Other",
+  uk: "Europe",
+  ukraine: "Europe",
+  "united arab emirates": "Middle East",
+  "united kingdom": "Europe",
+  "united states": "North America",
+  "united states virgin islands": "North America",
+  us: "North America",
+  usa: "North America",
+  uruguay: "South America",
+  vanuatu: "Oceania",
+  venezuela: "South America",
+  vietnam: "Southeast Asia",
+  yemen: "Middle East",
+}
+
+export const DEFAULT_MONITORED_HUB_LIMIT = 60
+export const DEFAULT_MONITORED_HUB_SOURCE_LIMIT = 250
+
 interface LocationListItem {
   hub_id: string
   name: string
@@ -26,100 +237,28 @@ interface LocationListItem {
   lon: number
 }
 
+export type DashboardLocation = Pick<LocationListItem, "hub_id" | "name" | "lat" | "lon"> & {
+  country: string
+  region: string
+}
+
+export interface DashboardLocationsResult {
+  hubs: SupplyChainHub[]
+  locations: DashboardLocation[]
+}
+
 interface ListLocationResponse {
   hubs: LocationListItem[]
 }
 
-interface RiskSnapshotResponse {
-  forecast_timestamp?: string
-  forecast_lead_hours?: number
-  risk_score?: number
-  risk_level?: string
-  primary_driver?: string
-}
+class DashboardApiError extends Error {
+  status: number
 
-interface RiskEventAttributeResponse {
-  hub_id?: string
-  hub_name?: string
-  lat?: number
-  lon?: number
-  day?: number
-  date?: string
-  peak_risk_score?: number
-  mean_risk_score?: number
-  risk_level?: string
-  combined_risk_score?: number
-  combined_risk_level?: string
-  primary_driver?: string
-  worst_interval?: string
-  weather_component?: number
-  geopolitical_component?: number
-    | {
-        risk_score?: number
-        score?: number
-        risk?: number
-        article_count?: number
-        articles_count?: number
-        positive_count?: number
-        neutral_count?: number
-        negative_count?: number
-        positive_articles?: number
-        neutral_articles?: number
-        negative_articles?: number
-        sentiment_distribution?: {
-          positive?: number
-          neutral?: number
-          negative?: number
-        }
-      }
-  country?: string
-  geopolitical_risk_score?: number
-  geopolitical_risk_level?: string
-  country_scores?: Array<{
-    composite_risk_score?: number
-    country?: string
-    timeframes?: {
-      "7d"?: {
-        article_count?: number
-        avg_sentiment?: number
-        distribution?: {
-          positive?: number
-          neutral?: number
-          negative?: number
-        }
-      }
-    }
-  }>
-  combined_component?:
-    | number
-    | {
-        risk_score?: number
-        score?: number
-        risk?: number
-        risk_level?: string
-      }
-  snapshots?: RiskSnapshotResponse[]
-  model_version?: string
-  outlook_risk_score?: number
-  outlook_risk_level?: string
-  peak_day?: string
-  peak_day_number?: number
-  forecast_origin?: string
-  days_assessed?: number
-}
-
-interface RiskEventResponse {
-  event_type?: string
-  attribute?: RiskEventAttributeResponse
-}
-
-interface RiskLocationResponse {
-  data_source?: string
-  dataset_type?: string
-  time_object?: {
-    timestamp?: string
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "DashboardApiError"
+    this.status = status
   }
-  events?: RiskEventResponse[]
 }
 
 function getFirstDefinedNumber(...values: Array<number | undefined>) {
@@ -142,10 +281,18 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(errorText || `Request failed with status ${response.status}`)
+    throw new DashboardApiError(errorText || `Request failed with status ${response.status}`, response.status)
   }
 
   return response.json() as Promise<T>
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isTransientBackendError(error: DashboardApiError) {
+  return error.status === 502 || error.status === 503 || error.status === 504
 }
 
 function clampScore(score: number) {
@@ -186,6 +333,71 @@ function parseDate(value?: string) {
   return new Date(value.replace(" ", "T") + "Z")
 }
 
+function getSydneyDateKey(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Sydney",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date)
+}
+
+function getRiskResponseDateKey(response: RiskLocationResponse): string | null {
+  if (response.time_object?.timestamp) {
+    const parsedTimestamp = new Date(response.time_object.timestamp)
+
+    if (!Number.isNaN(parsedTimestamp.getTime())) {
+      return getSydneyDateKey(parsedTimestamp)
+    }
+  }
+
+  return null
+}
+
+function isCurrentDayRiskAnalysis(response: RiskLocationResponse) {
+  const responseDateKey = getRiskResponseDateKey(response)
+  const todayKey = getSydneyDateKey(new Date())
+
+  return responseDateKey === todayKey
+}
+
+async function fetchRiskAnalysisWithRetry(hubId: string): Promise<RiskLocationResponse> {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    try {
+      const riskResponse = await fetchJson<RiskLocationResponse>(
+        `/ese/v1/risk/location/${encodeURIComponent(hubId)}`
+      )
+
+      if (isCurrentDayRiskAnalysis(riskResponse)) {
+        return riskResponse
+      }
+
+      if (attempt === 11) {
+        throw new Error("Risk analysis is not available yet for the current date.")
+      }
+
+      await delay(2500)
+      continue
+    } catch (error) {
+      if (!(error instanceof DashboardApiError)) {
+        throw error
+      }
+
+      const isMissingProcessedData =
+        error.status === 404 ||
+        (error.status === 400 && error.message.toLowerCase().includes("processed data"))
+
+      if ((!isMissingProcessedData && !isTransientBackendError(error)) || attempt === 11) {
+        throw error
+      }
+
+      await delay(2500)
+    }
+  }
+
+  throw new Error("Risk analysis failed")
+}
+
 function getComponentScore(
   component?:
     | number
@@ -207,17 +419,103 @@ function inferHubType(name: string): HubType {
   return "port"
 }
 
+function normalizeCountryName(country: string) {
+  return country
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ")
+}
+
+function getRegionOrder(region: string) {
+  const index = REGION_PRIORITY_ORDER.indexOf(region as (typeof REGION_PRIORITY_ORDER)[number])
+  return index === -1 ? REGION_PRIORITY_ORDER.length : index
+}
+
+function compareByRiskThenId(left: Pick<SupplyChainHub, "riskScore" | "id">, right: Pick<SupplyChainHub, "riskScore" | "id">) {
+  if (right.riskScore !== left.riskScore) {
+    return right.riskScore - left.riskScore
+  }
+
+  return left.id.localeCompare(right.id)
+}
+
+function compareLocationById(left: Pick<LocationListItem, "hub_id">, right: Pick<LocationListItem, "hub_id">) {
+  return left.hub_id.localeCompare(right.hub_id)
+}
+
+function extractPortwatchCountry(name: string) {
+  const parts = name.split(",")
+  const country = parts.at(-1)?.trim()
+  return country || null
+}
+
+function stripPortwatchCountryFromName(hubId: string, name: string) {
+  if (!hubId.startsWith("PW")) {
+    return name
+  }
+
+  const parts = name.split(",")
+
+  if (parts.length <= 1) {
+    return name
+  }
+
+  return parts.slice(0, -1).join(",").trim()
+}
+
+function deriveMonitoredHubCountry(location: LocationListItem, staticMetadata?: { country: string; region: string; type: HubType }) {
+  if (staticMetadata) {
+    return staticMetadata.country
+  }
+
+  if (location.hub_id.startsWith("PW")) {
+    return extractPortwatchCountry(location.name)
+  }
+
+  return null
+}
+
+function deriveMonitoredHubRegion(country: string | null, staticMetadata?: { country: string; region: string; type: HubType }) {
+  if (staticMetadata) {
+    return staticMetadata.region
+  }
+
+  if (!country) {
+    return "Other"
+  }
+
+  return COUNTRY_TO_REGION[normalizeCountryName(country)] ?? "Other"
+}
+
 function getHubMetadata(location: LocationListItem) {
   const staticMetadata = STATIC_HUB_METADATA[location.hub_id]
+  const country = deriveMonitoredHubCountry(location, staticMetadata)
+  const region = deriveMonitoredHubRegion(country, staticMetadata)
 
   if (staticMetadata) {
     return staticMetadata
   }
 
   return {
-    country: "Custom Location",
-    region: getRegionFromCoordinates(location.lat, location.lon),
+    country: country ?? "Unknown",
+    region,
     type: inferHubType(location.name),
+  }
+}
+
+function toDashboardLocation(location: LocationListItem): DashboardLocation {
+  const metadata = getHubMetadata(location)
+
+  return {
+    hub_id: location.hub_id,
+    name: stripPortwatchCountryFromName(location.hub_id, location.name),
+    lat: location.lat,
+    lon: location.lon,
+    country: metadata.country,
+    region: metadata.region,
   }
 }
 
@@ -253,7 +551,7 @@ function createUnavailableHub(location: LocationListItem): SupplyChainHub {
 
   return {
     id: location.hub_id,
-    name: location.name,
+    name: stripPortwatchCountryFromName(location.hub_id, location.name),
     location: {
       latitude: location.lat,
       longitude: location.lon,
@@ -492,7 +790,10 @@ function mapLocationRisk(location: LocationListItem, risk: RiskLocationResponse)
 
   return {
     id: location.hub_id,
-    name: currentAssessment?.hub_name ?? location.name,
+    name: stripPortwatchCountryFromName(
+      location.hub_id,
+      currentAssessment?.hub_name ?? location.name
+    ),
     location: {
       latitude: location.lat,
       longitude: location.lon,
@@ -546,23 +847,107 @@ function mapLocationRisk(location: LocationListItem, risk: RiskLocationResponse)
   }
 }
 
-export async function listLocations() {
-  const response = await fetchJson<ListLocationResponse>("/ese/v1/location/list?type=monitored")
+function shortlistLocations(locations: LocationListItem[], limit: number) {
+  if (limit <= 0 || locations.length <= limit) {
+    return [...locations].sort(compareLocationById)
+  }
+
+  const grouped = new Map<string, LocationListItem[]>()
+
+  for (const location of locations) {
+    const region = getHubMetadata(location).region || "Other"
+    const bucket = grouped.get(region)
+
+    if (bucket) {
+      bucket.push(location)
+    } else {
+      grouped.set(region, [location])
+    }
+  }
+
+  for (const bucket of grouped.values()) {
+    bucket.sort(compareLocationById)
+  }
+
+  const baseRegions = Array.from(grouped.keys())
+    .filter((region) => region !== "Other")
+    .sort((left, right) => {
+      const regionOrder = getRegionOrder(left) - getRegionOrder(right)
+      return regionOrder !== 0 ? regionOrder : left.localeCompare(right)
+    })
+
+  const selected: LocationListItem[] = []
+  const selectedIds = new Set<string>()
+  const nextIndexByRegion = new Map<string, number>()
+  const baseQuota = baseRegions.length > 0 ? Math.floor(limit / baseRegions.length) : 0
+
+  for (const region of grouped.keys()) {
+    nextIndexByRegion.set(region, 0)
+  }
+
+  for (const region of baseRegions) {
+    const bucket = grouped.get(region) ?? []
+    const takeCount = Math.min(baseQuota, bucket.length)
+
+    for (let index = 0; index < takeCount; index++) {
+      const location = bucket[index]
+      selected.push(location)
+      selectedIds.add(location.hub_id)
+    }
+
+    nextIndexByRegion.set(region, takeCount)
+  }
+
+  while (selected.length < limit) {
+    let nextLocation: LocationListItem | null = null
+    let nextRegion: string | null = null
+
+    for (const [region, bucket] of grouped.entries()) {
+      const index = nextIndexByRegion.get(region) ?? 0
+      const candidate = bucket[index]
+
+      if (!candidate || selectedIds.has(candidate.hub_id)) {
+        continue
+      }
+
+      if (!nextLocation || compareLocationById(candidate, nextLocation) < 0) {
+        nextLocation = candidate
+        nextRegion = region
+      }
+    }
+
+    if (!nextLocation || !nextRegion) {
+      break
+    }
+
+    selected.push(nextLocation)
+    selectedIds.add(nextLocation.hub_id)
+    nextIndexByRegion.set(nextRegion, (nextIndexByRegion.get(nextRegion) ?? 0) + 1)
+  }
+
+  return selected.sort(compareLocationById)
+}
+
+export async function listLocations(limit = DEFAULT_MONITORED_HUB_SOURCE_LIMIT) {
+  const searchParams = new URLSearchParams({ type: "monitored" })
+
+  if (limit > 0) {
+    searchParams.set("limit", String(limit))
+  }
+
+  const response = await fetchJson<ListLocationResponse>(`/ese/v1/location/list?${searchParams.toString()}`)
   return response.hubs ?? []
 }
 
-export async function fetchDashboardHubs() {
-  const locations = await listLocations()
+export async function fetchDashboardSearchLocations(): Promise<DashboardLocation[]> {
+  const locations = await listLocations(0)
+  return locations.map(toDashboardLocation).sort((left, right) => left.name.localeCompare(right.name))
+}
 
-  const riskResults = await Promise.allSettled(
-    locations.map(async (location) => ({
-      location,
-      risk: await fetchJson<RiskLocationResponse>(
-        `/ese/v1/risk/location/${encodeURIComponent(location.hub_id)}`
-      ),
-    }))
-  )
-
+function mapRiskResults(
+  locations: LocationListItem[],
+  riskResults: PromiseSettledResult<{ location: LocationListItem; risk: RiskLocationResponse }>[]
+) {
   return riskResults.map((result, index) => {
     const location = locations[index]
     if (!location) {
@@ -577,9 +962,33 @@ export async function fetchDashboardHubs() {
   })
 }
 
-export async function refreshDashboardHubs() {
-  const locations = await listLocations()
+export async function fetchDashboardHubs(
+  shortlistLimit = DEFAULT_MONITORED_HUB_LIMIT,
+  sourceLimit = DEFAULT_MONITORED_HUB_SOURCE_LIMIT
+): Promise<DashboardLocationsResult> {
+  const sourceLocations = await listLocations(sourceLimit)
+  const shortlistedLocations = shortlistLocations(sourceLocations, shortlistLimit)
 
+  const riskResults = await Promise.allSettled(
+    shortlistedLocations.map(async (location) => ({
+      location,
+      risk: await fetchJson<RiskLocationResponse>(
+        `/ese/v1/risk/location/${encodeURIComponent(location.hub_id)}`
+      ),
+    }))
+  )
+
+  const mappedHubs = mapRiskResults(shortlistedLocations, riskResults).sort(compareByRiskThenId)
+
+  return {
+    hubs: mappedHubs,
+    locations: shortlistedLocations.map(toDashboardLocation),
+  }
+}
+
+export async function refreshDashboardHubs(
+  locations: DashboardLocation[]
+): Promise<SupplyChainHub[]> {
   await Promise.allSettled(
     locations.map((location) =>
       fetchJson<{ message?: string }>(
@@ -589,5 +998,22 @@ export async function refreshDashboardHubs() {
     )
   )
 
-  return fetchDashboardHubs()
+  const riskResults = await Promise.allSettled(
+    locations.map(async (location) => ({
+      location,
+      risk: await fetchRiskAnalysisWithRetry(location.hub_id),
+    }))
+  )
+
+  return mapRiskResults(locations, riskResults)
+}
+
+export async function refreshDashboardHub(location: DashboardLocation): Promise<SupplyChainHub> {
+  await fetchJson<{ message?: string }>(
+    `/ese/v1/ingest/weather/${encodeURIComponent(location.hub_id)}`,
+    { method: "POST" }
+  )
+
+  const risk = await fetchRiskAnalysisWithRetry(location.hub_id)
+  return mapLocationRisk(location, risk)
 }

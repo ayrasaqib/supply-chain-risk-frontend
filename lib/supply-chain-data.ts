@@ -131,7 +131,7 @@ const HUB_DEFINITIONS: HubDefinition[] = [
     name: "Jawaharlal Nehru Port",
     location: { latitude: 18.9509, longitude: 72.9503 },
     country: "India",
-    region: "South Asia",
+    region: "Southeast Asia",
     type: "port",
   },
   {
@@ -240,7 +240,7 @@ export function getRegionFromCoordinates(latitude: number, longitude: number): s
     return "Middle East"
   }
   if (latitude >= -10 && latitude <= 35 && longitude >= 65 && longitude <= 100) {
-    return "South Asia"
+    return "Southeast Asia"
   }
   if (latitude >= -60 && latitude <= 15 && longitude >= -85 && longitude <= -30) {
     return "South America"

@@ -214,7 +214,7 @@ export function LandingPage() {
                         Supply Chain Risk Monitor
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Monitoring 50+ global supply chain hubs
+                        Monitoring 1K+ global supply chain hubs
                       </p>
                     </div>
                   </div>

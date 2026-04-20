@@ -16,8 +16,8 @@ export const REGION_MAP_PRESETS: Record<string, RegionMapPreset> = {
     zoom: 3.2,
   },
   "Southeast Asia": {
-    center: [106, 8],
-    zoom: 3.6,
+    center: [96, 15],
+    zoom: 3.3,
   },
   Europe: {
     center: [12, 51],
@@ -30,10 +30,6 @@ export const REGION_MAP_PRESETS: Record<string, RegionMapPreset> = {
   "Middle East": {
     center: [50, 27],
     zoom: 4,
-  },
-  "South Asia": {
-    center: [78, 21],
-    zoom: 4.1,
   },
   "South America": {
     center: [-60, -19],

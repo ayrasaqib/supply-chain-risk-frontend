@@ -5,15 +5,18 @@ import { RiskAnalysisForecast } from "./risk-analysis-forecast"
 import { RiskAnalysisOverview } from "./risk-analysis-overview"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { SupplyChainHub } from "@/lib/types"
 
 interface RiskPanelProps {
   hub: SupplyChainHub | null
   onClose: () => void
+  isLoading?: boolean
+  loadError?: string | null
 }
 
-export function RiskPanel({ hub, onClose }: RiskPanelProps) {
+export function RiskPanel({ hub, onClose, isLoading = false, loadError = null }: RiskPanelProps) {
   if (!hub) return null
 
   const headerLocation = hub.country === "Custom Location" ? `${hub.id} • ${hub.region}` : `${hub.country} • ${hub.region}`
@@ -58,23 +61,35 @@ export function RiskPanel({ hub, onClose }: RiskPanelProps) {
 
         <TabsContent value="overview" className="flex-1 overflow-hidden mt-0">
           <ScrollArea className="h-full">
-            <RiskAnalysisOverview
-              riskScore={hub.riskScore}
-              riskLevel={hub.riskLevel}
-              weatherRisk={hub.apiRiskFactors?.weather ?? hub.riskFactors.weather}
-              geopoliticalRisk={hub.apiRiskFactors?.geopolitical ?? hub.riskFactors.geopolitical}
-              latestAssessmentDate={hub.latestAssessmentDate ?? hub.apiRisk?.currentDate ?? hub.weeklyForecast[0]?.date}
-              latestWorstInterval={hub.latestWorstInterval ?? hub.apiRisk?.worstInterval}
-              daysAssessed={hub.daysAssessed ?? (hub.weeklyForecast.length > 0 ? hub.weeklyForecast.length : undefined)}
-              peakDay={hub.peakDay}
-              peakDayNumber={hub.peakDayNumber}
-              region={hub.region}
-              latitude={hub.location.latitude}
-              longitude={hub.location.longitude}
-              dataSource={hub.apiRisk?.dataSource}
-              datasetType={hub.apiRisk?.datasetType}
-              modelVersion={hub.apiRisk?.modelVersion}
-            />
+            {isLoading && hub.riskDataAvailable === false ? (
+              <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-6 text-center">
+                <Spinner className="h-8 w-8 text-primary" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">Loading risk analysis</p>
+                  <p className="text-sm text-muted-foreground">
+                    Running ingestion and risk analysis for this hub.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <RiskAnalysisOverview
+                riskScore={hub.riskScore}
+                riskLevel={hub.riskLevel}
+                weatherRisk={hub.apiRiskFactors?.weather ?? hub.riskFactors.weather}
+                geopoliticalRisk={hub.apiRiskFactors?.geopolitical ?? hub.riskFactors.geopolitical}
+                latestAssessmentDate={hub.latestAssessmentDate ?? hub.apiRisk?.currentDate ?? hub.weeklyForecast[0]?.date}
+                latestWorstInterval={hub.latestWorstInterval ?? hub.apiRisk?.worstInterval}
+                daysAssessed={hub.daysAssessed ?? (hub.weeklyForecast.length > 0 ? hub.weeklyForecast.length : undefined)}
+                peakDay={hub.peakDay}
+                peakDayNumber={hub.peakDayNumber}
+                region={hub.region}
+                latitude={hub.location.latitude}
+                longitude={hub.location.longitude}
+                dataSource={hub.apiRisk?.dataSource}
+                datasetType={hub.apiRisk?.datasetType}
+                modelVersion={hub.apiRisk?.modelVersion}
+              />
+            )}
           </ScrollArea>
         </TabsContent>
 
@@ -87,6 +102,12 @@ export function RiskPanel({ hub, onClose }: RiskPanelProps) {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      {loadError && hub.riskDataAvailable === false && (
+        <div className="border-t border-border px-4 py-3 text-sm text-amber-300">
+          {loadError}
+        </div>
+      )}
     </div>
   )
 }
