@@ -1,100 +1,118 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
   Line,
-} from "react-simple-maps"
-import { Route, ArrowRight, MapPin, AlertTriangle, LogOut, Loader2 } from "lucide-react"
-import { AppLogo } from "@/components/app-logo"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+} from "react-simple-maps";
+import {
+  Route,
+  ArrowRight,
+  MapPin,
+  AlertTriangle,
+  Loader2,
+  Map as MapIcon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useAuth } from "@/lib/auth-context"
-import { generateSupplyChainData } from "@/lib/supply-chain-data"
-import type { SupplyChainHub } from "@/lib/types"
+} from "@/components/ui/select";
+import { NavBar } from "@/components/ui/navbar";
+import { useAuth } from "@/lib/auth-context";
+import { generateSupplyChainData } from "@/lib/supply-chain-data";
+import type { SupplyChainHub } from "@/lib/types";
 
-const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 // Route hub type from API response
 interface RouteHub {
-  hub_id: string
-  name: string
-  latitude: number
-  longitude: number
-  risk_score: number
+  hub_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  risk_score: number;
 }
 
 interface RouteResponse {
-  route: RouteHub[]
-  total_distance_km: number
-  average_risk_score: number
+  route: RouteHub[];
+  total_distance_km: number;
+  average_risk_score: number;
 }
 
 // Mock API function - Replace this with your actual API call
-async function fetchOptimalRoute(startHubId: string, endHubId: string): Promise<RouteResponse> {
+async function fetchOptimalRoute(
+  startHubId: string,
+  endHubId: string,
+): Promise<RouteResponse> {
   // TODO: Replace with actual API endpoint
   // const response = await fetch(`YOUR_API_URL?start=${startHubId}&end=${endHubId}`)
   // return response.json()
 
   // Mock implementation for demo
-  await new Promise((resolve) => setTimeout(resolve, 1500))
-  
-  const hubs = generateSupplyChainData()
-  const hubMap = new Map(hubs.map(h => [h.id, h]))
-  
-  const startHub = hubMap.get(startHubId)
-  const endHub = hubMap.get(endHubId)
-  
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  const hubs = generateSupplyChainData();
+  const hubMap = new Map(hubs.map((h) => [h.id, h]));
+
+  const startHub = hubMap.get(startHubId);
+  const endHub = hubMap.get(endHubId);
+
   if (!startHub || !endHub) {
-    throw new Error("Invalid hub selection")
+    throw new Error("Invalid hub selection");
   }
 
   // Mock route generation - in reality, your API would return the optimal path
   const possibleIntermediates = hubs.filter(
-    h => h.id !== startHubId && h.id !== endHubId
-  )
-  
+    (h) => h.id !== startHubId && h.id !== endHubId,
+  );
+
   // Pick 1-3 intermediate hubs based on "proximity" (simplified)
-  const intermediates: SupplyChainHub[] = []
-  const numIntermediates = Math.min(Math.floor(Math.random() * 3) + 1, possibleIntermediates.length)
-  
-  const shuffled = [...possibleIntermediates].sort(() => Math.random() - 0.5)
+  const intermediates: SupplyChainHub[] = [];
+  const numIntermediates = Math.min(
+    Math.floor(Math.random() * 3) + 1,
+    possibleIntermediates.length,
+  );
+
+  const shuffled = [...possibleIntermediates].sort(() => Math.random() - 0.5);
   for (let i = 0; i < numIntermediates; i++) {
-    intermediates.push(shuffled[i])
+    intermediates.push(shuffled[i]);
   }
 
   // Build route
-  const routeHubs = [startHub, ...intermediates, endHub]
-  
+  const routeHubs = [startHub, ...intermediates, endHub];
+
   // Calculate mock distance
-  let totalDistance = 0
+  let totalDistance = 0;
   for (let i = 0; i < routeHubs.length - 1; i++) {
-    const h1 = routeHubs[i]
-    const h2 = routeHubs[i + 1]
-    const dx = h2.location.longitude - h1.location.longitude
-    const dy = h2.location.latitude - h1.location.latitude
-    totalDistance += Math.sqrt(dx * dx + dy * dy) * 111 // Rough km conversion
+    const h1 = routeHubs[i];
+    const h2 = routeHubs[i + 1];
+    const dx = h2.location.longitude - h1.location.longitude;
+    const dy = h2.location.latitude - h1.location.latitude;
+    totalDistance += Math.sqrt(dx * dx + dy * dy) * 111; // Rough km conversion
   }
 
   const avgRisk = Math.round(
-    routeHubs.reduce((sum, h) => sum + h.riskScore, 0) / routeHubs.length
-  )
+    routeHubs.reduce((sum, h) => sum + h.riskScore, 0) / routeHubs.length,
+  );
 
   return {
-    route: routeHubs.map(h => ({
+    route: routeHubs.map((h) => ({
       hub_id: h.id,
       name: h.name,
       latitude: h.location.latitude,
@@ -103,142 +121,120 @@ async function fetchOptimalRoute(startHubId: string, endHubId: string): Promise<
     })),
     total_distance_km: Math.round(totalDistance),
     average_risk_score: avgRisk,
-  }
+  };
 }
 
 // Get color based on risk score
 function getRiskColor(score: number): string {
-  if (score < 30) return "#22c55e" // green
-  if (score < 50) return "#eab308" // yellow
-  if (score < 70) return "#f97316" // orange
-  return "#ef4444" // red
+  if (score < 30) return "#22c55e"; // green
+  if (score < 50) return "#eab308"; // yellow
+  if (score < 70) return "#f97316"; // orange
+  return "#ef4444"; // red
 }
 
 function getSegmentRiskColor(score1: number, score2: number): string {
-  const avg = (score1 + score2) / 2
-  return getRiskColor(avg)
+  const avg = (score1 + score2) / 2;
+  return getRiskColor(avg);
 }
 
 export default function OptimalPathPage() {
-  const router = useRouter()
-  const { user, isLoading: authLoading, logout } = useAuth()
-  
-  const [hubs, setHubs] = useState<SupplyChainHub[]>([])
-  const [startHub, setStartHub] = useState<string>("")
-  const [endHub, setEndHub] = useState<string>("")
-  const [routeData, setRouteData] = useState<RouteResponse | null>(null)
-  const [isCalculating, setIsCalculating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
+
+  const [hubs, setHubs] = useState<SupplyChainHub[]>([]);
+  const [startHub, setStartHub] = useState<string>("");
+  const [endHub, setEndHub] = useState<string>("");
+  const [routeData, setRouteData] = useState<RouteResponse | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router]);
 
   // Load hubs
   useEffect(() => {
     if (user) {
-      const data = generateSupplyChainData()
-      setHubs(data)
+      const data = generateSupplyChainData();
+      setHubs(data);
     }
-  }, [user])
-
-  // Handle logout
-  const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
+  }, [user]);
 
   // Calculate route
   const handleCalculateRoute = async () => {
     if (!startHub || !endHub) {
-      setError("Please select both start and end hubs")
-      return
-    }
-    
-    if (startHub === endHub) {
-      setError("Start and end hubs must be different")
-      return
+      setError("Please select both start and end hubs");
+      return;
     }
 
-    setError(null)
-    setIsCalculating(true)
-    setRouteData(null)
+    if (startHub === endHub) {
+      setError("Start and end hubs must be different");
+      return;
+    }
+
+    setError(null);
+    setIsCalculating(true);
+    setRouteData(null);
 
     try {
-      const result = await fetchOptimalRoute(startHub, endHub)
-      setRouteData(result)
+      const result = await fetchOptimalRoute(startHub, endHub);
+      setRouteData(result);
     } catch (err) {
-      setError("Failed to calculate route. Please try again.")
+      setError("Failed to calculate route. Please try again.");
     } finally {
-      setIsCalculating(false)
+      setIsCalculating(false);
     }
-  }
+  };
 
   // Generate line segments for the route
   const routeSegments = useMemo(() => {
-    if (!routeData || routeData.route.length < 2) return []
-    
-    const segments = []
+    if (!routeData || routeData.route.length < 2) return [];
+
+    const segments = [];
     for (let i = 0; i < routeData.route.length - 1; i++) {
-      const from = routeData.route[i]
-      const to = routeData.route[i + 1]
+      const from = routeData.route[i];
+      const to = routeData.route[i + 1];
       segments.push({
         from: [from.longitude, from.latitude] as [number, number],
         to: [to.longitude, to.latitude] as [number, number],
         color: getSegmentRiskColor(from.risk_score, to.risk_score),
-      })
+      });
     }
-    return segments
-  }, [routeData])
+    return segments;
+  }, [routeData]);
 
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Navigation */}
-      <nav className="flex h-16 items-center justify-between border-b border-border/40 bg-background px-5">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <AppLogo className="h-10 w-10" />
-            <span className="text-base font-semibold tracking-tight">IntelliSupply</span>
-          </Link>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm" className="h-10 gap-2 px-4">
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Button>
-          </Link>
-          <Link href="/custom-location">
-            <Button variant="outline" size="sm" className="h-10 gap-2 px-4">
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">Custom Location</span>
-            </Button>
-          </Link>
-          <span className="hidden text-sm text-muted-foreground md:inline">
-            {user.name}
-          </span>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="h-10 gap-2 px-4">
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign out</span>
-          </Button>
-        </div>
-      </nav>
+      <NavBar
+        actions={[
+          {
+            href: "/dashboard",
+            label: "Dashboard",
+            icon: <MapIcon className="h-4 w-4" />,
+          },
+          {
+            href: "/custom-location",
+            label: "Custom Location",
+            icon: <MapPin className="h-4 w-4" />,
+          },
+        ]}
+      />
 
       <div className="flex flex-1 flex-col lg:flex-row">
         {/* Left Panel - Controls */}
@@ -267,7 +263,9 @@ export default function OptimalPathPage() {
                       <div className="flex items-center gap-2">
                         <div
                           className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: getRiskColor(hub.riskScore) }}
+                          style={{
+                            backgroundColor: getRiskColor(hub.riskScore),
+                          }}
                         />
                         {hub.name}
                       </div>
@@ -290,7 +288,9 @@ export default function OptimalPathPage() {
                       <div className="flex items-center gap-2">
                         <div
                           className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: getRiskColor(hub.riskScore) }}
+                          style={{
+                            backgroundColor: getRiskColor(hub.riskScore),
+                          }}
                         />
                         {hub.name}
                       </div>
@@ -339,16 +339,22 @@ export default function OptimalPathPage() {
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-xs text-muted-foreground">Total Distance</p>
+                      <p className="text-xs text-muted-foreground">
+                        Total Distance
+                      </p>
                       <p className="text-xl font-semibold">
                         {routeData.total_distance_km.toLocaleString()} km
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Avg Risk Score</p>
+                      <p className="text-xs text-muted-foreground">
+                        Avg Risk Score
+                      </p>
                       <p
                         className="text-xl font-semibold"
-                        style={{ color: getRiskColor(routeData.average_risk_score) }}
+                        style={{
+                          color: getRiskColor(routeData.average_risk_score),
+                        }}
                       >
                         {routeData.average_risk_score}
                       </p>
@@ -368,7 +374,9 @@ export default function OptimalPathPage() {
                       <div className="flex items-center gap-3 py-2">
                         <div
                           className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: getRiskColor(hub.risk_score) }}
+                          style={{
+                            backgroundColor: getRiskColor(hub.risk_score),
+                          }}
                         >
                           {index + 1}
                         </div>
@@ -437,7 +445,9 @@ export default function OptimalPathPage() {
 
             {/* Hub Markers - show all hubs faded, route hubs highlighted */}
             {hubs.map((hub) => {
-              const isInRoute = routeData?.route.some(r => r.hub_id === hub.id)
+              const isInRoute = routeData?.route.some(
+                (r) => r.hub_id === hub.id,
+              );
               return (
                 <Marker
                   key={hub.id}
@@ -465,7 +475,7 @@ export default function OptimalPathPage() {
                     </text>
                   )}
                 </Marker>
-              )
+              );
             })}
           </ComposableMap>
 
@@ -518,5 +528,5 @@ export default function OptimalPathPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

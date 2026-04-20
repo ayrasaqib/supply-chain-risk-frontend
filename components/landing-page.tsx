@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { demoHubs, SupplyChainMap } from "./demo-map";
 import { scrollToSection } from "./ui/scroll";
 import { useReveal } from "@/hooks/use-reveal";
+
 const features = [
   {
     icon: Globe,
@@ -339,9 +340,11 @@ export function LandingPage() {
                 <li>• Track up to 5 ports</li>
                 <li>• Basic risk insights</li>
               </ul>
-              <Button className="mt-6 w-full" variant="outline">
-                Get Started
-              </Button>
+              <Link href="/register">
+                <Button className="mt-6 w-full" variant="outline">
+                  Get Started
+                </Button>
+              </Link>
             </div>
 
             <div className="relative rounded-xl border border-primary/40 bg-primary/10 p-6 scale-105 shadow-xl shadow-primary/10">

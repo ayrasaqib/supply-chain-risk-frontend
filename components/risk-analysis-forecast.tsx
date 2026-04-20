@@ -20,7 +20,6 @@ interface ForecastEntry {
 
 interface RiskAnalysisForecastProps {
   forecast: ForecastEntry[]
-  note: string
 }
 
 function DailyRiskRow({ daily, isToday }: { daily: ForecastEntry; isToday: boolean }) {
@@ -173,7 +172,7 @@ function CombinedRiskTrendChart({ forecast }: { forecast: ForecastEntry[] }) {
   )
 }
 
-export function RiskAnalysisForecast({ forecast, note }: RiskAnalysisForecastProps) {
+export function RiskAnalysisForecast({ forecast }: RiskAnalysisForecastProps) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -199,10 +198,6 @@ export function RiskAnalysisForecast({ forecast, note }: RiskAnalysisForecastPro
           No daily risk entries were returned by the API for this hub yet.
         </div>
       )}
-
-      <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
-        <p className="text-xs text-muted-foreground">{note}</p>
-      </div>
 
       {forecast.length > 0 && <CombinedRiskTrendChart forecast={forecast} />}
     </div>

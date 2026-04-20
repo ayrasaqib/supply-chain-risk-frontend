@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react"
 import { Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import {
   Command,
   CommandEmpty,
@@ -66,14 +65,15 @@ export function HubSearch({ hubs, onSelectHub }: HubSearchProps) {
   return (
     <Popover open={searchOpen} onOpenChange={setSearchOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-auto rounded-lg border border-white/10 bg-slate-950/45 px-3 py-3 text-slate-100 shadow-lg backdrop-blur-md hover:bg-slate-950/55 hover:text-white"
+        <button
+          type="button"
+          className="flex h-12 min-w-[11.5rem] items-center gap-2 rounded-lg border border-white/10 bg-slate-950/45 px-3 text-left text-slate-100 shadow-lg backdrop-blur-md transition-colors hover:bg-slate-950/55"
         >
           <Search className="h-4 w-4" />
-          <span className="hidden sm:inline">Search Hubs</span>
-        </Button>
+          <span className="text-sm font-medium text-slate-100">
+            Search Hubs
+          </span>
+        </button>
       </PopoverTrigger>
       <PopoverContent
         className="w-80 rounded-lg border border-white/10 bg-slate-950/45 p-0 text-slate-100 shadow-lg backdrop-blur-md"

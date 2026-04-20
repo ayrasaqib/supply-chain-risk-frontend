@@ -97,7 +97,6 @@ export function RiskPanel({ hub, onClose, isLoading = false, loadError = null }:
           <ScrollArea className="h-full">
             <RiskAnalysisForecast
               forecast={hub.weeklyForecast}
-              note="These values come from the risk analytics API after weather ingestion completes for the dynamic hub."
             />
           </ScrollArea>
         </TabsContent>

@@ -1,17 +1,16 @@
-"use client"
+"use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import dynamic from "next/dynamic"
-import Link from "next/link"
-import { MapPin, Route, LogOut } from "lucide-react"
-import { AppLogo } from "@/components/app-logo"
+import { MapPin, Route } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { RiskPanel } from "@/components/risk-panel"
 import { HubSearch, type SearchHubOption } from "@/components/hub-search"
 import { MapControls } from "@/components/map-controls"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { NavBar } from "@/components/ui/navbar"
 import { useAuth } from "@/lib/auth-context"
 import {
   DEFAULT_MONITORED_HUB_LIMIT,
@@ -30,7 +29,8 @@ const TOP_HUB_COUNT = 20
 
 // Dynamically import the map component to avoid SSR issues with react-simple-maps
 const SupplyChainMap = dynamic(
-  () => import("@/components/supply-chain-map").then((mod) => mod.SupplyChainMap),
+  () =>
+    import("@/components/supply-chain-map").then((mod) => mod.SupplyChainMap),
   {
     ssr: false,
     loading: () => (
@@ -41,12 +41,12 @@ const SupplyChainMap = dynamic(
         </div>
       </div>
     ),
-  }
-)
+  },
+);
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, isLoading: authLoading, logout } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   
   const [hubs, setHubs] = useState<SupplyChainHub[]>([])
   const [summary, setSummary] = useState<RiskSummary | null>(null)
@@ -64,7 +64,7 @@ export default function DashboardPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login")
+      router.push("/login");
     }
   }, [user, authLoading, router])
 
@@ -279,12 +279,6 @@ export default function DashboardPage() {
     setHubLoadError(null)
   }, [])
 
-  // Handle logout
-  const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
-
   const availableRegions = useMemo(
     () =>
       Array.from(new Set(hubs.map((hub) => hub.region)))
@@ -325,11 +319,11 @@ export default function DashboardPage() {
       <div className="flex h-screen items-center justify-center bg-background">
         <Spinner className="h-8 w-8 text-primary" />
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
   if (isLoading || !summary) {
@@ -343,7 +337,6 @@ export default function DashboardPage() {
         </div>
       )
     }
-
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -353,42 +346,26 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Top Navigation Bar */}
-      <nav className="flex h-16 items-center justify-between border-b border-border/40 bg-background px-5">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <AppLogo className="h-10 w-10" />
-            <span className="text-base font-semibold tracking-tight">IntelliSupply</span>
-          </Link>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Link href="/optimal-path">
-            <Button variant="outline" size="sm" className="h-10 gap-2 px-4">
-              <Route className="h-4 w-4" />
-              <span className="hidden sm:inline">Optimal Path</span>
-            </Button>
-          </Link>
-          <Link href="/custom-location">
-            <Button variant="outline" size="sm" className="h-10 gap-2 px-4">
-              <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">Custom Location</span>
-            </Button>
-          </Link>
-          <span className="hidden text-sm text-muted-foreground md:inline">
-            {user.name}
-          </span>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="h-10 gap-2 px-4">
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Sign out</span>
-          </Button>
-        </div>
-      </nav>
+      <NavBar
+        actions={[
+          {
+            href: "/custom-location",
+            label: "Custom Location",
+            icon: <MapPin className="h-4 w-4" />,
+          },
+          {
+            href: "/optimal-path",
+            label: "Optimal Path",
+            icon: <Route className="h-4 w-4" />,
+          },
+        ]}
+      />
 
       {/* Dashboard header with summary stats */}
       <DashboardHeader
@@ -455,5 +432,5 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
-  )
+  );
 }
