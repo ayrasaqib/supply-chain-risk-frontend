@@ -400,7 +400,7 @@ export default function OptimalPathPage() {
       />
 
       <div className="flex flex-1 flex-col lg:flex-row">
-        <div className="w-full border-b border-border/40 bg-card/50 p-6 backdrop-blur-sm lg:w-[30rem] lg:border-b-0 lg:border-r">
+        <div className="w-full border-b border-border/40 bg-card/50 p-6 backdrop-blur-sm lg:w-[36rem] lg:border-b-0 lg:border-r">
           <div className="mb-6">
             <h1 className="flex items-center gap-2 text-2xl font-bold">
               <Route className="h-6 w-6 text-primary" />
@@ -540,8 +540,6 @@ export default function OptimalPathPage() {
         </div>
 
         <div className="relative flex-1 overflow-hidden bg-slate-900">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.16),transparent_34%)]" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_58%,rgba(2,6,23,0.72))]" />
 
           <ComposableMap
             projection="geoMercator"
@@ -590,14 +588,6 @@ export default function OptimalPathPage() {
                     from={segment.from}
                     to={segment.to}
                     stroke={segment.color}
-                    strokeWidth={8}
-                    strokeLinecap="round"
-                    opacity={0.18}
-                  />
-                  <Line
-                    from={segment.from}
-                    to={segment.to}
-                    stroke={segment.color}
                     strokeWidth={3.25}
                     strokeLinecap="round"
                   />
@@ -615,6 +605,10 @@ export default function OptimalPathPage() {
 
               {hubs.map((hub) => {
                 const isInRoute = routeHubIds.has(hub.id);
+                if (routeData && !isInRoute) {
+                  return null;
+                }
+
                 const routeIndex =
                   routeData?.route.findIndex((routeHub) => routeHub.hub_id === hub.id) ?? -1;
                 const isEndpoint =
@@ -624,7 +618,7 @@ export default function OptimalPathPage() {
                 return (
                   <Marker key={hub.id} coordinates={[hub.lon, hub.lat]}>
                     <circle
-                      r={isInRoute ? (isEndpoint ? 9 : 7) : routeData ? 2.5 : 4}
+                      r={isInRoute ? (isEndpoint ? 9 : 7) : 4}
                       fill={
                         isInRoute
                           ? getRiskColor(routeRiskScoresByHubId.get(hub.id) ?? null)
@@ -632,7 +626,7 @@ export default function OptimalPathPage() {
                       }
                       stroke={isInRoute ? "#fff" : "#64748b"}
                       strokeWidth={isInRoute ? 2 : 1}
-                      opacity={isInRoute ? 1 : routeData ? 0.18 : 0.5}
+                      opacity={isInRoute ? 1 : 0.5}
                     />
                     {isInRoute && routeIndex >= 0 && (
                       <text
