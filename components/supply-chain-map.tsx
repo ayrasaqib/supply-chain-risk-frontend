@@ -48,6 +48,12 @@ interface ClusterMarkerData {
   averageRisk: number
 }
 
+interface ClusterBucket {
+  id: string
+  hubs: SupplyChainHub[]
+  coordinates: [number, number]
+}
+
 type MarkerItem =
   | { type: "hub"; hub: SupplyChainHub }
   | { type: "cluster"; cluster: ClusterMarkerData }
@@ -59,67 +65,113 @@ function getHighestRiskLevel(hubs: SupplyChainHub[]): RiskLevel {
   return "low"
 }
 
-function getClusterCellSize(zoom: number) {
+function getClusterDistanceThresholdKm(zoom: number) {
   if (zoom < 1.4) {
-    return { latitude: 24, longitude: 28 }
+    return 1800
   }
 
   if (zoom < 2.2) {
-    return { latitude: 14, longitude: 18 }
+    return 1000
   }
 
   if (zoom < 3.2) {
-    return { latitude: 8, longitude: 10 }
+    return 550
   }
 
-  return { latitude: 4, longitude: 5 }
+  return 260
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180
+}
+
+function getDistanceKm(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+) {
+  const earthRadiusKm = 6371
+  const deltaLatitude = toRadians(to.latitude - from.latitude)
+  const deltaLongitude = toRadians(to.longitude - from.longitude)
+  const fromLatitude = toRadians(from.latitude)
+  const toLatitude = toRadians(to.latitude)
+
+  const a =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(deltaLongitude / 2) ** 2
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function getUniqueHubs(hubs: SupplyChainHub[]) {
+  return Array.from(new Map(hubs.map((hub) => [hub.id, hub])).values())
+}
+
+function getClusterCoordinates(hubs: SupplyChainHub[]): [number, number] {
+  return hubs.reduce<[number, number]>(
+    (accumulator, hub) => [
+      accumulator[0] + hub.location.longitude / hubs.length,
+      accumulator[1] + hub.location.latitude / hubs.length,
+    ],
+    [0, 0]
+  )
 }
 
 function buildMarkerItems(hubs: SupplyChainHub[], shouldCluster: boolean, zoom: number): MarkerItem[] {
+  const uniqueHubs = getUniqueHubs(hubs)
+
   if (!shouldCluster) {
-    return hubs.map((hub) => ({ type: "hub", hub }))
+    return uniqueHubs.map((hub) => ({ type: "hub", hub }))
   }
 
-  const cellSize = getClusterCellSize(zoom)
-  const buckets = new Map<string, SupplyChainHub[]>()
+  const thresholdKm = getClusterDistanceThresholdKm(zoom)
+  const buckets: ClusterBucket[] = []
 
-  for (const hub of hubs) {
-    const latBucket = Math.floor((hub.location.latitude + 90) / cellSize.latitude)
-    const lonBucket = Math.floor((hub.location.longitude + 180) / cellSize.longitude)
-    const key = `${latBucket}:${lonBucket}`
-    const bucket = buckets.get(key)
+  for (const hub of uniqueHubs) {
+    const matchingBucket = buckets.find((bucket) => {
+      const [longitude, latitude] = bucket.coordinates
 
-    if (bucket) {
-      bucket.push(hub)
+      return (
+        getDistanceKm(
+          {
+            latitude: hub.location.latitude,
+            longitude: hub.location.longitude,
+          },
+          {
+            latitude,
+            longitude,
+          }
+        ) <= thresholdKm
+      )
+    })
+
+    if (matchingBucket) {
+      matchingBucket.hubs.push(hub)
+      matchingBucket.coordinates = getClusterCoordinates(matchingBucket.hubs)
     } else {
-      buckets.set(key, [hub])
+      buckets.push({
+        id: hub.id,
+        hubs: [hub],
+        coordinates: [hub.location.longitude, hub.location.latitude],
+      })
     }
   }
 
-  return Array.from(buckets.entries()).map(([key, bucket]) => {
-    if (bucket.length === 1) {
-      return { type: "hub", hub: bucket[0] }
+  return buckets.map((bucket, index) => {
+    if (bucket.hubs.length === 1) {
+      return { type: "hub", hub: bucket.hubs[0] }
     }
-
-    const coordinates = bucket.reduce<[number, number]>(
-      (accumulator, hub) => [
-        accumulator[0] + hub.location.longitude / bucket.length,
-        accumulator[1] + hub.location.latitude / bucket.length,
-      ],
-      [0, 0]
-    )
 
     const averageRisk = Math.round(
-      bucket.reduce((sum, hub) => sum + hub.riskScore, 0) / bucket.length
+      bucket.hubs.reduce((sum, hub) => sum + hub.riskScore, 0) / bucket.hubs.length
     )
 
     return {
       type: "cluster",
       cluster: {
-        id: key,
-        coordinates,
-        count: bucket.length,
-        riskLevel: getHighestRiskLevel(bucket),
+        id: `${bucket.id}:${index}`,
+        coordinates: bucket.coordinates,
+        count: bucket.hubs.length,
+        riskLevel: getHighestRiskLevel(bucket.hubs),
         averageRisk,
       },
     }

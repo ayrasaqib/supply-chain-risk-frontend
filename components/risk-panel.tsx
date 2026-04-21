@@ -51,9 +51,17 @@ export function RiskPanel({ hub, onClose, isLoading = false, loadError = null }:
       </div>
 
       <Tabs defaultValue="overview" className="flex h-[calc(100vh-100px)] flex-col">
-        <TabsList className="mx-4 mt-4 grid w-auto grid-cols-2">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="forecast" className="gap-1.5">
+        <TabsList className="mx-4 mt-4 grid w-auto grid-cols-2 bg-slate-900/70 p-1 text-slate-400">
+          <TabsTrigger
+            value="overview"
+            className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-950 data-[state=active]:shadow-sm"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="forecast"
+            className="gap-1.5 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-950 data-[state=active]:shadow-sm"
+          >
             <Calendar className="h-3.5 w-3.5" />
             7-Day Forecast
           </TabsTrigger>
@@ -82,6 +90,7 @@ export function RiskPanel({ hub, onClose, isLoading = false, loadError = null }:
                 daysAssessed={hub.daysAssessed ?? (hub.weeklyForecast.length > 0 ? hub.weeklyForecast.length : undefined)}
                 peakDay={hub.peakDay}
                 peakDayNumber={hub.peakDayNumber}
+                country={hub.country}
                 region={hub.region}
                 latitude={hub.location.latitude}
                 longitude={hub.location.longitude}
