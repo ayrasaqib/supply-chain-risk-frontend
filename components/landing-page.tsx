@@ -30,7 +30,8 @@ const features = [
   {
     icon: BarChart3,
     title: "Data-Driven Insights",
-    description: "Risk scoring is powered by comprehensive weather and geopolitical event data.",
+    description:
+      "Risk scoring is powered by comprehensive weather and geopolitical event data.",
   },
   {
     icon: Bot,
@@ -41,7 +42,8 @@ const features = [
   {
     icon: Zap,
     title: "Real-time Alerts",
-    description: "Instant notifications when risk levels change at any of the locations you subscribe to.",
+    description:
+      "Instant notifications when risk levels change at any of the locations you subscribe to.",
   },
   {
     icon: MapPin,
@@ -244,7 +246,9 @@ export function LandingPage() {
 
               <div className="relative h-[420px] w-full overflow-hidden bg-slate-950">
                 <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 backdrop-blur-md">
-                  <div className="text-[11px] font-medium text-slate-100">Global view</div>
+                  <div className="text-[11px] font-medium text-slate-100">
+                    Global view
+                  </div>
                   <div className="mt-1 text-[11px] text-slate-400">
                     Top-risk hubs and clusters
                   </div>
@@ -332,45 +336,86 @@ export function LandingPage() {
             Choose the plan that best fits your operations.
           </p>
 
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
-            <div className="rounded-xl border border-border/60 bg-card/70 backdrop-blur p-6 hover:shadow-lg transition">
-              <h3 className="font-semibold">Starter</h3>
-              <p className="text-3xl font-bold mt-2">$0</p>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                <li>• Track up to 5 ports</li>
-                <li>• Basic risk insights</li>
-              </ul>
-              <Link href="/register">
-                <Button className="mt-6 w-full" variant="outline">
+          <div className="mt-12 flex justify-center">
+            <div className="grid grid-cols-3 gap-3 w-fit">
+              {/* STARTER */}
+              <div className="relative w-full max-w-xs rounded-xl border border-border/60 bg-card/70 backdrop-blur p-6 hover:shadow-lg transition text-center">
+                <h3 className="font-semibold">STARTER</h3>
+                <p className="text-3xl font-bold mt-2">$299</p>
+                <p className="text-sm text-muted-foreground">/month</p>
+
+                <p className="mt-3 text-sm text-muted-foreground">
+                  For smaller logistics firms needing essential risk visibility
+                </p>
+
+                <button className="mt-4 w-full rounded-md bg-primary text-primary-foreground py-2 text-sm font-medium hover:opacity-90 transition">
                   Get Started
-                </Button>
-              </Link>
-            </div>
+                </button>
 
-            <div className="relative rounded-xl border border-primary/40 bg-primary/10 p-6 scale-105 shadow-xl shadow-primary/10">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs bg-primary text-primary-foreground px-3 py-1 rounded-full">
-                Most Popular
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>• Up to 20 monitored hubs</li>
+                  <li>• 7-day risk forecasts</li>
+                  <li>• Dashboard & map access</li>
+                  <li>• Email risk notifications</li>
+                  <li>• Regional map filtering</li>
+                  <li>• Basic risk reporting</li>
+                </ul>
               </div>
-              <h3 className="font-semibold">Pro</h3>
-              <p className="text-3xl font-bold mt-2">$49/mo</p>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                <li>• Unlimited ports</li>
-                <li>• Route optimization</li>
-                <li>• Real-time alerts</li>
-              </ul>
-              <Button className="mt-6 w-full">Upgrade</Button>
-            </div>
 
-            <div className="rounded-xl border border-border/60 bg-card/70 backdrop-blur p-6 hover:shadow-lg transition">
-              <h3 className="font-semibold">Enterprise</h3>
-              <p className="text-3xl font-bold mt-2">Custom</p>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                <li>• Team collaboration</li>
-                <li>• API access</li>
-              </ul>
-              <Button className="mt-6 w-full" variant="outline">
-                Contact Sales
-              </Button>
+              {/* PROFESSIONAL */}
+              <div className="relative w-full max-w-xs rounded-xl border border-primary/40 bg-primary/10 p-6 hover:shadow-lg transition text-center">
+                <h3 className="font-semibold">PROFESSIONAL</h3>
+                <p className="text-3xl font-bold mt-2">$799</p>
+                <p className="text-sm text-muted-foreground">/month</p>
+
+                <p className="mt-3 text-sm text-muted-foreground">
+                  For mid-size enterprises requiring full risk coverage
+                </p>
+
+                <button className="mt-4 w-full rounded-md bg-primary text-primary-foreground py-2 text-sm font-medium hover:opacity-90 transition">
+                  Get Started
+                </button>
+
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>• Up to 200 monitored hubs</li>
+                  <li>• 7-day risk forecasts</li>
+                  <li>• Custom location analysis</li>
+                  <li>• Optimal path routing</li>
+                  <li>• Hub watchlist & alerts</li>
+                  <li>• Advanced analytics</li>
+                  <li>• Priority support</li>
+                </ul>
+              </div>
+
+              {/* ENTERPRISE */}
+              <div className="relative w-full max-w-xs rounded-xl border border-border/60 bg-card/70 backdrop-blur p-6 hover:shadow-lg transition text-center">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs bg-primary text-primary-foreground px-3 py-1 rounded-full">
+                  PRIMARY TARGET
+                </div>
+
+                <h3 className="font-semibold mt-4">ENTERPRISE</h3>
+                <p className="text-3xl font-bold mt-2">Custom</p>
+
+                <p className="mt-3 text-sm text-muted-foreground">
+                  For large multinationals with complex, geographically
+                  distributed supply chains
+                </p>
+
+                <button className="mt-4 w-full rounded-md border border-border bg-transparent py-2 text-sm font-medium hover:bg-muted transition">
+                  Contact Sales
+                </button>
+
+                <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                  <li>• 1,800+ global hubs</li>
+                  <li>• Full platform access</li>
+                  <li>• API integration (ERP, TMS)</li>
+                  <li>• Bulk hub monitoring</li>
+                  <li>• Unlimited watchlist alerts</li>
+                  <li>• Dedicated support & SLA</li>
+                  <li>• Custom data pipelines</li>
+                  <li>• Organisational features</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
