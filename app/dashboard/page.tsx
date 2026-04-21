@@ -26,6 +26,7 @@ import type { HubViewMode } from "@/lib/map-config"
 import type { SupplyChainHub, RiskSummary } from "@/lib/types"
 
 const TOP_HUB_COUNT = 20
+const PENDING_DASHBOARD_HUB_KEY = "dashboard-pending-hub-id"
 
 // Dynamically import the map component to avoid SSR issues with react-simple-maps
 const SupplyChainMap = dynamic(
@@ -262,6 +263,34 @@ export default function DashboardPage() {
     },
     [handleSelectHub, hubs, loadSearchHub, searchLocations]
   )
+
+  useEffect(() => {
+    if (typeof window === "undefined" || isLoading) {
+      return
+    }
+
+    const pendingHubId = window.localStorage.getItem(PENDING_DASHBOARD_HUB_KEY)
+    if (!pendingHubId) {
+      return
+    }
+
+    window.localStorage.removeItem(PENDING_DASHBOARD_HUB_KEY)
+
+    const existingHub = hubs.find((hub) => hub.id === pendingHubId)
+    if (existingHub) {
+      setSelectedRegion(existingHub.region)
+      handleSelectHub(existingHub)
+      return
+    }
+
+    const location = searchLocations.find((item) => item.hub_id === pendingHubId)
+    if (!location) {
+      setError("Unable to find the selected hub in the monitored location list.")
+      return
+    }
+
+    void loadSearchHub(location)
+  }, [handleSelectHub, hubs, isLoading, loadSearchHub, searchLocations])
 
   const handleViewModeChange = useCallback((mode: HubViewMode) => {
     setViewMode(mode)
