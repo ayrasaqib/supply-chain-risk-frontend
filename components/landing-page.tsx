@@ -301,6 +301,41 @@ export function LandingPage() {
             </p>
           </div>
 
+          <div className="mt-16 grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((f, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-border/60 bg-card/70 backdrop-blur p-6 hover:border-primary/40 hover:bg-accent/40 hover:-translate-y-1 transition-all duration-200"
+              >
+                <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <f.icon className="h-5 w-5 text-primary" />
+                </div>
+
+                <h3 className="mt-4 font-semibold">{f.title}</h3>
+
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  {f.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section
+        id="pricing"
+        className="reveal delay-300 py-24 bg-card/20 border-y border-border/40"
+      >
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Clear, reasonable pricing
+          </h2>
+
+          <p className="mt-4 text-muted-foreground">
+            Choose the plan that best fits your operations.
+          </p>
+
           <div className="mt-12 flex justify-center">
             <div className="grid grid-cols-3 gap-3 w-fit">
               {/* STARTER */}
