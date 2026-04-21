@@ -51,34 +51,6 @@ function isTransientBackendError(error: ApiRequestError) {
   return error.status === 503 || error.status === 502 || error.status === 504
 }
 
-function getSydneyDateKey(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Sydney",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date)
-}
-
-function getRiskResponseDateKey(response: RiskLocationResponse): string | null {
-  if (response.time_object?.timestamp) {
-    const parsedTimestamp = new Date(response.time_object.timestamp)
-
-    if (!Number.isNaN(parsedTimestamp.getTime())) {
-      return getSydneyDateKey(parsedTimestamp)
-    }
-  }
-
-  return null
-}
-
-function isCurrentDayRiskAnalysis(response: RiskLocationResponse) {
-  const responseDateKey = getRiskResponseDateKey(response)
-  const todayKey = getSydneyDateKey(new Date())
-
-  return responseDateKey === todayKey
-}
-
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -154,18 +126,7 @@ async function visualiseApiRequest<T>(path: string, init?: RequestInit): Promise
 async function fetchRiskAnalysisWithRetry(hubId: string): Promise<RiskLocationResponse> {
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
-      const riskResponse = await apiRequest<RiskLocationResponse>(`/ese/v1/risk/location/${hubId}`)
-
-      if (isCurrentDayRiskAnalysis(riskResponse)) {
-        return riskResponse
-      }
-
-      if (attempt === 11) {
-        throw new Error("Risk analysis is not available yet for the current date.")
-      }
-
-      await delay(2500)
-      continue
+      return await apiRequest<RiskLocationResponse>(`/ese/v1/risk/location/${hubId}`)
     } catch (error) {
       if (!(error instanceof ApiRequestError)) {
         throw error
@@ -313,7 +274,7 @@ export async function POST(request: Request) {
 
     const existingRiskResponse = await fetchExistingRiskAnalysis(createResponse.hub_id)
 
-    if (existingRiskResponse && isCurrentDayRiskAnalysis(existingRiskResponse)) {
+    if (existingRiskResponse) {
       const graphUrl = await fetchCombinedRiskGraphUrl(existingRiskResponse)
 
       return NextResponse.json({

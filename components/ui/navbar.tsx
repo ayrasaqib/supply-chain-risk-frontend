@@ -32,6 +32,13 @@ export function NavBar({
     router.push("/");
   };
 
+  const branding = (
+    <>
+      <AppLogo className="h-9 w-9" />
+      <span className="font-semibold tracking-tight">IntelliSupply</span>
+    </>
+  );
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
       {/* gradient effects */}
@@ -40,10 +47,15 @@ export function NavBar({
 
       <div className="flex h-16 w-full items-center justify-between gap-4 px-4 md:px-6">
         {/* LEFT */}
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-          <AppLogo className="h-9 w-9" />
-          <span className="font-semibold tracking-tight">IntelliSupply</span>
-        </Link>
+        {variant === "auth" ? (
+          <Link href="/" className="flex shrink-0 items-center gap-2">
+            {branding}
+          </Link>
+        ) : (
+          <div className="flex shrink-0 items-center gap-2">
+            {branding}
+          </div>
+        )}
 
         {/* CENTER (landing only) */}
         {variant === "landing" && (
