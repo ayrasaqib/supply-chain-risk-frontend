@@ -333,51 +333,12 @@ function parseDate(value?: string) {
   return new Date(value.replace(" ", "T") + "Z")
 }
 
-function getSydneyDateKey(date: Date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Sydney",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date)
-}
-
-function getRiskResponseDateKey(response: RiskLocationResponse): string | null {
-  if (response.time_object?.timestamp) {
-    const parsedTimestamp = new Date(response.time_object.timestamp)
-
-    if (!Number.isNaN(parsedTimestamp.getTime())) {
-      return getSydneyDateKey(parsedTimestamp)
-    }
-  }
-
-  return null
-}
-
-function isCurrentDayRiskAnalysis(response: RiskLocationResponse) {
-  const responseDateKey = getRiskResponseDateKey(response)
-  const todayKey = getSydneyDateKey(new Date())
-
-  return responseDateKey === todayKey
-}
-
 async function fetchRiskAnalysisWithRetry(hubId: string): Promise<RiskLocationResponse> {
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
-      const riskResponse = await fetchJson<RiskLocationResponse>(
+      return await fetchJson<RiskLocationResponse>(
         `/ese/v1/risk/location/${encodeURIComponent(hubId)}`
       )
-
-      if (isCurrentDayRiskAnalysis(riskResponse)) {
-        return riskResponse
-      }
-
-      if (attempt === 11) {
-        throw new Error("Risk analysis is not available yet for the current date.")
-      }
-
-      await delay(2500)
-      continue
     } catch (error) {
       if (!(error instanceof DashboardApiError)) {
         throw error
