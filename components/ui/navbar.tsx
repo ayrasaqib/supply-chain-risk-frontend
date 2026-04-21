@@ -8,7 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { scrollToSection } from "./scroll";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
-import { User, Map, MapPin, Route, LogOut } from "lucide-react";
+import { User, MapPin, Route, LogOut } from "lucide-react";
 
 type Action = {
   href: string;
@@ -38,31 +38,31 @@ export function NavBar({
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
 
-      <div className="container mx-auto flex h-16 items-center justify-between px-6">
+      <div className="flex h-16 w-full items-center justify-between gap-4 px-4 md:px-6">
         {/* LEFT */}
-        <Link href="/" className="flex items-center gap-2">
-          <AppLogo />
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <AppLogo className="h-9 w-9" />
           <span className="font-semibold tracking-tight">IntelliSupply</span>
         </Link>
 
         {/* CENTER (landing only) */}
         {variant === "landing" && (
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden flex-1 items-center justify-center gap-2 md:flex">
             <button
               onClick={() => scrollToSection("stats")}
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex h-10 items-center rounded-full px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Platform
             </button>
             <button
               onClick={() => scrollToSection("features")}
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex h-10 items-center rounded-full px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Features
             </button>
             <button
               onClick={() => scrollToSection("pricing")}
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex h-10 items-center rounded-full px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Pricing
             </button>
@@ -70,16 +70,16 @@ export function NavBar({
         )}
 
         {/* RIGHT */}
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           {!user ? (
             <>
               <Link href="/login">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" className="h-10 px-4">
                   Log in
                 </Button>
               </Link>
               <Link href="/register">
-                <Button size="sm">Get Started</Button>
+                <Button size="sm" className="h-10 px-4">Get Started</Button>
               </Link>
             </>
           ) : (
@@ -102,7 +102,7 @@ export function NavBar({
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2"
+                  className="flex h-10 items-center gap-2 rounded-full px-2 hover:bg-accent"
                 >
                   <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium">
                     {user.name?.[0] ?? "U"}
@@ -119,16 +119,6 @@ export function NavBar({
                     >
                       <User className="h-4 w-4 text-muted-foreground" />
                       Profile
-                    </Link>
-
-                    {/* DASHBOARD */}
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-md"
-                    >
-                      <Map className="h-4 w-4 text-muted-foreground" />
-                      Dashboard
                     </Link>
                     <div className="my-2 h-px bg-border" />
                     <button

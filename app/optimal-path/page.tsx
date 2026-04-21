@@ -19,6 +19,7 @@ import {
   Milestone,
   ChevronsUpDown,
   Check,
+  Map as MapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -320,7 +321,7 @@ export default function OptimalPathPage() {
           {
             href: "/dashboard",
             label: "Dashboard",
-            icon: <MapPin className="h-4 w-4" />,
+            icon: <MapIcon className="h-4 w-4" />,
           },
           {
             href: "/custom-location",

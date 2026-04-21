@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import type { RiskEvent, RiskLocationResponse } from "@/lib/risk-api-types"
 
 const API_BASE_URL =
   process.env.API_BASE_URL ??
@@ -15,57 +16,6 @@ interface ApiErrorResponse {
 
 interface CreateLocationResponse {
   hub_id: string
-}
-
-interface RiskEventAttribute {
-  hub_id?: string
-  hub_name?: string
-  day?: number
-  date?: string
-  peak_risk_score?: number
-  mean_risk_score?: number
-  combined_risk_score?: number
-  risk_level?: string
-  primary_driver?: string
-  worst_interval?: string
-  snapshots?: Array<{
-    forecast_timestamp?: string
-    forecast_lead_hours?: number
-    risk_score?: number
-    risk_level?: string
-    primary_driver?: string
-  }>
-  model_version?: string
-  lat?: number
-  lon?: number
-  outlook_risk_score?: number
-  outlook_risk_level?: string
-  peak_day?: string
-  peak_day_number?: number
-  forecast_origin?: string
-  days_assessed?: number
-}
-
-interface RiskEvent {
-  time_object?: {
-    timestamp?: string
-    duration?: number
-    duration_unit?: string
-    timezone?: string
-  }
-  event_type?: string
-  attribute?: RiskEventAttribute
-}
-
-interface RiskLocationResponse {
-  data_source?: string
-  dataset_type?: string
-  dataset_id?: string
-  time_object?: {
-    timestamp?: string
-    timezone?: string
-  }
-  events?: RiskEvent[]
 }
 
 interface VisualiseDatasetEvent {
@@ -111,14 +61,6 @@ function getSydneyDateKey(date: Date) {
 }
 
 function getRiskResponseDateKey(response: RiskLocationResponse): string | null {
-  const dailyAssessment = response.events?.find(
-    (event) => event.event_type === "daily_risk_assessment" && event.attribute?.date
-  )
-
-  if (dailyAssessment?.attribute?.date) {
-    return dailyAssessment.attribute.date
-  }
-
   if (response.time_object?.timestamp) {
     const parsedTimestamp = new Date(response.time_object.timestamp)
 
@@ -212,7 +154,18 @@ async function visualiseApiRequest<T>(path: string, init?: RequestInit): Promise
 async function fetchRiskAnalysisWithRetry(hubId: string): Promise<RiskLocationResponse> {
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
-      return await apiRequest<RiskLocationResponse>(`/ese/v1/risk/location/${hubId}`)
+      const riskResponse = await apiRequest<RiskLocationResponse>(`/ese/v1/risk/location/${hubId}`)
+
+      if (isCurrentDayRiskAnalysis(riskResponse)) {
+        return riskResponse
+      }
+
+      if (attempt === 11) {
+        throw new Error("Risk analysis is not available yet for the current date.")
+      }
+
+      await delay(2500)
+      continue
     } catch (error) {
       if (!(error instanceof ApiRequestError)) {
         throw error
