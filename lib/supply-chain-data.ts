@@ -200,7 +200,9 @@ export function calculateRiskSummary(hubs: SupplyChainHub[]): RiskSummary {
     totalRisk += hub.riskScore
     availableRiskCount++
 
-    switch (hub.riskLevel) {
+    const computedRiskLevel = getRiskLevel(hub.riskScore)
+
+    switch (computedRiskLevel) {
       case "low":
         summary.lowRisk++
         break

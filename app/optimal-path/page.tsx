@@ -8,6 +8,7 @@ import {
   Geography,
   Marker,
   Line,
+  ZoomableGroup,
 } from "react-simple-maps";
 import {
   Route,
@@ -15,14 +16,19 @@ import {
   MapPin,
   AlertTriangle,
   Loader2,
-  Navigation,
-  Milestone,
+  Map as MapIcon,
   ChevronsUpDown,
   Check,
-  Map as MapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Command,
   CommandEmpty,
@@ -32,50 +38,50 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { NavBar } from "@/components/ui/navbar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/lib/auth-context";
-import { generateSupplyChainData } from "@/lib/supply-chain-data";
-import type { SupplyChainHub } from "@/lib/types";
+import {
+  fetchDashboardSearchLocations,
+  type DashboardLocation,
+} from "@/lib/dashboard-api";
 import { cn } from "@/lib/utils";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-// Route hub type from API response
 interface RouteHub {
   hub_id: string;
   name: string;
   latitude: number;
   longitude: number;
-  risk_score: number;
+  risk_score: number | null;
 }
 
 interface RouteResponse {
   route: RouteHub[];
   total_distance_km: number;
-  average_risk_score: number;
-}
-
-interface RouteSegment {
-  from: [number, number];
-  to: [number, number];
-  color: string;
+  average_risk_score: number | null;
 }
 
 interface ApiErrorResponse {
   error?: string;
+}
+
+interface HubSearchOption extends DashboardLocation {
+  id: string;
+}
+
+interface RouteViewport {
+  center: [number, number];
+  scale: number;
+}
+
+interface MapPosition {
+  coordinates: [number, number];
+  zoom: number;
 }
 
 async function fetchOptimalRoute(
@@ -116,30 +122,58 @@ async function fetchOptimalRoute(
   return parsedBody as RouteResponse;
 }
 
-// Get color based on risk score
-function getRiskColor(score: number): string {
-  if (score < 30) return "#22c55e"; // green
-  if (score < 50) return "#eab308"; // yellow
-  if (score < 70) return "#f97316"; // orange
-  return "#ef4444"; // red
+function getRiskColor(score: number | null): string {
+  if (score === null) return "#94a3b8";
+  if (score < 30) return "#22c55e";
+  if (score < 50) return "#eab308";
+  if (score < 70) return "#f97316";
+  return "#ef4444";
 }
 
-function getSegmentRiskColor(score1: number, score2: number): string {
-  const avg = (score1 + score2) / 2;
-  return getRiskColor(avg);
+function getSegmentRiskColor(score1: number | null, score2: number | null): string {
+  if (score1 === null || score2 === null) {
+    return "#94a3b8";
+  }
+
+  return getRiskColor((score1 + score2) / 2);
 }
 
-function getRouteRecommendation(avgRiskScore: number): string {
-  if (avgRiskScore >= 70) {
-    return "This route carries critical exposure. Consider delaying movement or evaluating alternate endpoints.";
+function getRouteViewport(route: RouteHub[] | null): RouteViewport {
+  if (!route || route.length === 0) {
+    return {
+      center: [20, 20],
+      scale: 140,
+    };
   }
-  if (avgRiskScore >= 50) {
-    return "This path is workable but high-risk. Plan contingencies around the highest-risk stopovers.";
+
+  const longitudes = route.map((hub) => hub.longitude);
+  const latitudes = route.map((hub) => hub.latitude);
+  const minLongitude = Math.min(...longitudes);
+  const maxLongitude = Math.max(...longitudes);
+  const minLatitude = Math.min(...latitudes);
+  const maxLatitude = Math.max(...latitudes);
+  const longitudeSpan = maxLongitude - minLongitude;
+  const latitudeSpan = maxLatitude - minLatitude;
+
+  let scale = 140;
+
+  if (longitudeSpan < 18 && latitudeSpan < 12) {
+    scale = 480;
+  } else if (longitudeSpan < 35 && latitudeSpan < 22) {
+    scale = 320;
+  } else if (longitudeSpan < 70 && latitudeSpan < 40) {
+    scale = 230;
+  } else if (longitudeSpan < 120 && latitudeSpan < 65) {
+    scale = 175;
   }
-  if (avgRiskScore >= 30) {
-    return "This route is moderately exposed. Monitor hub conditions before each handoff.";
-  }
-  return "This route is relatively stable for current conditions. Routine monitoring should be enough.";
+
+  return {
+    center: [
+      (minLongitude + maxLongitude) / 2,
+      (minLatitude + maxLatitude) / 2,
+    ],
+    scale,
+  };
 }
 
 function HubSearchDropdown({
@@ -149,14 +183,13 @@ function HubSearchDropdown({
   placeholder,
   disabled,
 }: {
-  hubs: SupplyChainHub[];
+  hubs: HubSearchOption[];
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
-
   const selectedHub = hubs.find((hub) => hub.id === value);
 
   return (
@@ -171,13 +204,7 @@ function HubSearchDropdown({
           disabled={disabled}
         >
           {selectedHub ? (
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: getRiskColor(selectedHub.riskScore) }}
-              />
-              <span className="truncate">{selectedHub.name}</span>
-            </span>
+            <span className="truncate">{selectedHub.name}</span>
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}
@@ -206,10 +233,6 @@ function HubSearchDropdown({
                       value === hub.id ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <div
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: getRiskColor(hub.riskScore) }}
-                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{hub.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -230,29 +253,51 @@ export default function OptimalPathPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
-  const [hubs, setHubs] = useState<SupplyChainHub[]>([]);
+  const [hubs, setHubs] = useState<HubSearchOption[]>([]);
   const [startHub, setStartHub] = useState<string>("");
   const [endHub, setEndHub] = useState<string>("");
   const [routeData, setRouteData] = useState<RouteResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [isLoadingHubs, setIsLoadingHubs] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapPosition, setMapPosition] = useState<MapPosition>({
+    coordinates: [20, 20],
+    zoom: 1,
+  });
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
     }
   }, [user, authLoading, router]);
 
-  // Load hubs
   useEffect(() => {
-    if (user) {
-      const data = generateSupplyChainData();
-      setHubs(data);
-    }
+    if (!user) return;
+
+    setIsLoadingHubs(true);
+    setError(null);
+
+    void fetchDashboardSearchLocations()
+      .then((locations) => {
+        setHubs(
+          locations.map((location) => ({
+            ...location,
+            id: location.hub_id,
+          })),
+        );
+      })
+      .catch((loadError) => {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load hub list.",
+        );
+      })
+      .finally(() => {
+        setIsLoadingHubs(false);
+      });
   }, [user]);
 
-  // Calculate route
   const handleCalculateRoute = async () => {
     if (!startHub || !endHub) {
       setError("Please select both start and end hubs");
@@ -272,24 +317,20 @@ export default function OptimalPathPage() {
       const result = await fetchOptimalRoute(startHub, endHub);
       setRouteData(result);
     } catch (err) {
-      setError("Failed to calculate route. Please try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to calculate route. Please try again.",
+      );
     } finally {
       setIsCalculating(false);
     }
   };
 
-  const handleReset = () => {
-    setStartHub("");
-    setEndHub("");
-    setRouteData(null);
-    setError(null);
-  };
-
-  // Generate line segments for the route
-  const routeSegments = useMemo<RouteSegment[]>(() => {
+  const routeSegments = useMemo(() => {
     if (!routeData || routeData.route.length < 2) return [];
 
-    const segments: RouteSegment[] = [];
+    const segments = [];
     for (let i = 0; i < routeData.route.length - 1; i++) {
       const from = routeData.route[i];
       const to = routeData.route[i + 1];
@@ -302,10 +343,37 @@ export default function OptimalPathPage() {
     return segments;
   }, [routeData]);
 
+  const routeRiskScoresByHubId = useMemo(() => {
+    const scores = new Map<string, number | null>();
+
+    for (const hub of routeData?.route ?? []) {
+      scores.set(hub.hub_id, hub.risk_score);
+    }
+
+    return scores;
+  }, [routeData]);
+
+  const routeHubIds = useMemo(
+    () => new Set(routeData?.route.map((hub) => hub.hub_id) ?? []),
+    [routeData],
+  );
+
+  const routeViewport = useMemo(
+    () => getRouteViewport(routeData?.route ?? null),
+    [routeData],
+  );
+
+  useEffect(() => {
+    setMapPosition({
+      coordinates: routeViewport.center,
+      zoom: Math.max(routeViewport.scale / 140, 1),
+    });
+  }, [routeViewport]);
+
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <Spinner className="h-8 w-8 text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -330,331 +398,284 @@ export default function OptimalPathPage() {
           },
         ]}
       />
-      <main className="flex-1">
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">
-                  Optimal Path Finder
-                </h1>
-                <p className="mt-2 text-muted-foreground">
-                  Get an optimal route recommendation from hub-to-hub balancing distance and risk factors.
+
+      <div className="flex flex-1 flex-col lg:flex-row">
+        <div className="w-full border-b border-border/40 bg-card/50 p-6 backdrop-blur-sm lg:w-[30rem] lg:border-b-0 lg:border-r">
+          <div className="mb-6">
+            <h1 className="flex items-center gap-2 text-2xl font-bold">
+              <Route className="h-6 w-6 text-primary" />
+              Optimal Path Finder
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Find the best route through hubs balancing risk and distance
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="start-hub">Starting Hub</Label>
+              <HubSearchDropdown
+                hubs={hubs}
+                value={startHub}
+                onChange={(value) => {
+                  setStartHub(value);
+                  setError(null);
+                }}
+                placeholder="Select starting hub"
+                disabled={isCalculating || isLoadingHubs}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="end-hub">Destination Hub</Label>
+              <HubSearchDropdown
+                hubs={hubs}
+                value={endHub}
+                onChange={(value) => {
+                  setEndHub(value);
+                  setError(null);
+                }}
+                placeholder="Select destination hub"
+                disabled={isCalculating || isLoadingHubs}
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                {error}
+              </div>
+            )}
+
+            <Button
+              onClick={handleCalculateRoute}
+              disabled={isCalculating || isLoadingHubs || !startHub || !endHub}
+              className="w-full gap-2"
+            >
+              {isCalculating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculating...
+                </>
+              ) : (
+                <>
+                  <Route className="h-4 w-4" />
+                  Find Optimal Path
+                </>
+              )}
+            </Button>
+          </div>
+
+          {routeData && (
+            <div className="mt-6 space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Route Summary</CardTitle>
+                  <CardDescription>
+                    {routeData.route.length} hubs in optimal path
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Total Distance
+                      </p>
+                      <p className="text-xl font-semibold">
+                        {routeData.total_distance_km.toLocaleString()} km
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Avg Risk Score
+                      </p>
+                      <p
+                        className="text-xl font-semibold"
+                        style={{
+                          color: getRiskColor(routeData.average_risk_score),
+                        }}
+                      >
+                        {routeData.average_risk_score ?? "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Route Path</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-0">
+                  {routeData.route.map((hub, index) => (
+                    <div key={hub.hub_id}>
+                      <div className="flex items-center gap-3 py-2">
+                        <div
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium text-white"
+                          style={{
+                            backgroundColor: getRiskColor(hub.risk_score),
+                          }}
+                        >
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{hub.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Risk Score: {hub.risk_score ?? "N/A"}
+                          </p>
+                        </div>
+                      </div>
+                      {index < routeData.route.length - 1 && (
+                        <div className="ml-4 flex items-center gap-2 py-1">
+                          <div className="h-4 w-px bg-border" />
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        <div className="relative flex-1 overflow-hidden bg-slate-900">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.16),transparent_34%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_58%,rgba(2,6,23,0.72))]" />
+
+          <ComposableMap
+            projection="geoMercator"
+            projectionConfig={{
+              scale: 140,
+              center: [0, 20],
+            }}
+            className="h-full w-full"
+            style={{ width: "100%", height: "100%" }}
+          >
+            <ZoomableGroup
+              center={mapPosition.coordinates}
+              zoom={mapPosition.zoom}
+              minZoom={1}
+              maxZoom={8}
+              onMoveEnd={({ coordinates, zoom }) => {
+                setMapPosition({
+                  coordinates: coordinates as [number, number],
+                  zoom,
+                });
+              }}
+            >
+              <rect x={-1000} y={-500} width={2000} height={1000} fill="#0f172a" />
+              <Geographies geography={geoUrl}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill="#1e293b"
+                      stroke="#334155"
+                      strokeWidth={0.5}
+                      style={{
+                        default: { outline: "none" },
+                        hover: { outline: "none", fill: "#334155" },
+                        pressed: { outline: "none" },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+
+              {routeSegments.map((segment, index) => (
+                <g key={index}>
+                  <Line
+                    from={segment.from}
+                    to={segment.to}
+                    stroke={segment.color}
+                    strokeWidth={8}
+                    strokeLinecap="round"
+                    opacity={0.18}
+                  />
+                  <Line
+                    from={segment.from}
+                    to={segment.to}
+                    stroke={segment.color}
+                    strokeWidth={3.25}
+                    strokeLinecap="round"
+                  />
+                  <Line
+                    from={segment.from}
+                    to={segment.to}
+                    stroke="#f8fafc"
+                    strokeWidth={1}
+                    strokeLinecap="round"
+                    strokeDasharray="3 6"
+                    opacity={0.35}
+                  />
+                </g>
+              ))}
+
+              {hubs.map((hub) => {
+                const isInRoute = routeHubIds.has(hub.id);
+                const routeIndex =
+                  routeData?.route.findIndex((routeHub) => routeHub.hub_id === hub.id) ?? -1;
+                const isEndpoint =
+                  routeIndex === 0 ||
+                  routeIndex === (routeData?.route.length ?? 0) - 1;
+
+                return (
+                  <Marker key={hub.id} coordinates={[hub.lon, hub.lat]}>
+                    <circle
+                      r={isInRoute ? (isEndpoint ? 9 : 7) : routeData ? 2.5 : 4}
+                      fill={
+                        isInRoute
+                          ? getRiskColor(routeRiskScoresByHubId.get(hub.id) ?? null)
+                          : "#475569"
+                      }
+                      stroke={isInRoute ? "#fff" : "#64748b"}
+                      strokeWidth={isInRoute ? 2 : 1}
+                      opacity={isInRoute ? 1 : routeData ? 0.18 : 0.5}
+                    />
+                    {isInRoute && routeIndex >= 0 && (
+                      <text
+                        textAnchor="middle"
+                        y="4"
+                        style={{
+                          fontFamily: "system-ui",
+                          fontSize: "9px",
+                          fill: "#fff",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {routeIndex + 1}
+                      </text>
+                    )}
+                  </Marker>
+                );
+              })}
+            </ZoomableGroup>
+          </ComposableMap>
+
+          {!routeData && !isCalculating && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="rounded-lg bg-card/90 px-6 py-4 text-center backdrop-blur-sm">
+                <p className="text-sm text-muted-foreground">
+                  Select start and destination hubs to find the optimal path
                 </p>
               </div>
+            </div>
+          )}
 
-              <div className="space-y-4 rounded-lg border border-border/50 bg-card p-6">
-                <div className="space-y-2">
-                  <Label htmlFor="start-hub">Starting Hub</Label>
-                  <HubSearchDropdown
-                    hubs={hubs}
-                    value={startHub}
-                    onChange={(value) => {
-                      setStartHub(value);
-                      setError(null);
-                    }}
-                    disabled={isCalculating}
-                    placeholder="Select starting hub"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="end-hub">Destination Hub</Label>
-                  <HubSearchDropdown
-                    hubs={hubs}
-                    value={endHub}
-                    onChange={(value) => {
-                      setEndHub(value);
-                      setError(null);
-                    }}
-                    disabled={isCalculating}
-                    placeholder="Select destination hub"
-                  />
-                </div>
-
-                {error && (
-                  <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    onClick={handleCalculateRoute}
-                    disabled={isCalculating || !startHub || !endHub}
-                    className="flex-1 gap-2"
-                  >
-                    {isCalculating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        In Progress...
-                      </>
-                    ) : (
-                      <>
-                        <Route className="h-4 w-4" />
-                        Find Optimal Path
-                      </>
-                    )}
-                  </Button>
-                  {routeData && (
-                    <Button variant="outline" onClick={handleReset}>
-                      Reset
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
-                <h3 className="text-sm font-medium">Tips</h3>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  <li>Choose different hubs for origin and destination.</li>
-                  <li>Lower route risk scores mean more stable movement.</li>
-                  <li>Intermediate hubs are suggested automatically.</li>
-                </ul>
+          {isCalculating && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3 rounded-lg bg-card p-6">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Calculating optimal route...
+                </p>
               </div>
             </div>
-
-            <div className="lg:sticky lg:top-24 lg:self-start">
-              {!routeData && !isCalculating && (
-                <div className="flex h-[500px] flex-col items-center justify-center rounded-lg border border-dashed border-border/50 bg-card/30 text-center">
-                  <Route className="h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 font-medium text-muted-foreground">
-                    No Route Calculated
-                  </h3>
-                  <p className="mt-1 max-w-sm text-sm text-muted-foreground/70">
-                    Select a starting hub and destination hub to generate an
-                    optimal route recommendation.
-                  </p>
-                </div>
-              )}
-
-              {isCalculating && (
-                <div className="flex h-[500px] flex-col items-center justify-center rounded-lg border border-border/50 bg-card/30">
-                  <Spinner className="h-10 w-10 text-primary" />
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Calculating route segments, balancing risk, and preparing
-                    the path visualization...
-                  </p>
-                </div>
-              )}
-
-              {routeData && !isCalculating && (
-                <div className="overflow-hidden rounded-lg border border-border/50 bg-card">
-                  <div className="border-b border-border p-4">
-                    <h2 className="text-lg font-bold">Recommended Route</h2>
-                    <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      <Navigation className="h-3.5 w-3.5" />
-                      <span>{routeData.route.length} hubs in optimal path</span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Milestone className="h-3 w-3" />
-                      <span>
-                        {routeData.total_distance_km.toLocaleString()} km total
-                        distance
-                      </span>
-                    </div>
-                  </div>
-
-                  <ScrollArea className="h-[640px]">
-                    <div className="space-y-6 p-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg border border-border/50 bg-card/30 p-4">
-                          <p className="text-xs text-muted-foreground">
-                            Total Distance
-                          </p>
-                          <p className="mt-1 text-2xl font-semibold text-foreground">
-                            {routeData.total_distance_km.toLocaleString()} km
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-border/50 bg-card/30 p-4">
-                          <p className="text-xs text-muted-foreground">
-                            Avg Risk Score
-                          </p>
-                          <p
-                            className="mt-1 text-2xl font-semibold"
-                            style={{
-                              color: getRiskColor(routeData.average_risk_score),
-                            }}
-                          >
-                            {routeData.average_risk_score}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Card className="border-border/50 bg-card/30">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">Map View</CardTitle>
-                          <CardDescription>
-                            Highlighted markers show the selected route.
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
-                            <div className="h-[320px] w-full">
-                              <ComposableMap
-                                projection="geoMercator"
-                                projectionConfig={{
-                                  scale: 140,
-                                  center: [20, 20],
-                                }}
-                                className="h-full w-full"
-                                style={{ width: "100%", height: "100%" }}
-                              >
-                                <Geographies geography={geoUrl}>
-                                  {({ geographies }) =>
-                                    geographies.map((geo) => (
-                                      <Geography
-                                        key={geo.rsmKey}
-                                        geography={geo}
-                                        fill="#1e293b"
-                                        stroke="#334155"
-                                        strokeWidth={0.5}
-                                        style={{
-                                          default: { outline: "none" },
-                                          hover: {
-                                            outline: "none",
-                                            fill: "#334155",
-                                          },
-                                          pressed: { outline: "none" },
-                                        }}
-                                      />
-                                    ))
-                                  }
-                                </Geographies>
-
-                                {routeSegments.map((segment, index) => (
-                                  <Line
-                                    key={`${segment.from.join(",")}-${segment.to.join(",")}-${index}`}
-                                    from={segment.from}
-                                    to={segment.to}
-                                    stroke={segment.color}
-                                    strokeWidth={3}
-                                    strokeLinecap="round"
-                                  />
-                                ))}
-
-                                {hubs.map((hub) => {
-                                  const isInRoute = routeData.route.some(
-                                    (routeHub) => routeHub.hub_id === hub.id,
-                                  );
-
-                                  return (
-                                    <Marker
-                                      key={hub.id}
-                                      coordinates={[
-                                        hub.location.longitude,
-                                        hub.location.latitude,
-                                      ]}
-                                    >
-                                      <circle
-                                        r={isInRoute ? 8 : 4}
-                                        fill={
-                                          isInRoute
-                                            ? getRiskColor(hub.riskScore)
-                                            : "#475569"
-                                        }
-                                        stroke={isInRoute ? "#fff" : "#64748b"}
-                                        strokeWidth={isInRoute ? 2 : 1}
-                                        opacity={isInRoute ? 1 : 0.5}
-                                      />
-                                      {isInRoute && (
-                                        <text
-                                          textAnchor="middle"
-                                          y={-14}
-                                          style={{
-                                            fontFamily: "system-ui",
-                                            fontSize: "10px",
-                                            fill: "#fff",
-                                            fontWeight: 500,
-                                          }}
-                                        >
-                                          {hub.name}
-                                        </text>
-                                      )}
-                                    </Marker>
-                                  );
-                                })}
-                              </ComposableMap>
-                            </div>
-
-                            <div className="absolute bottom-3 right-3 rounded-lg bg-card/90 p-3 backdrop-blur-sm">
-                              <p className="mb-2 text-xs font-medium">
-                                Risk Level
-                              </p>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs">
-                                  <div className="h-3 w-3 rounded-full bg-green-500" />
-                                  <span>Low (&lt;30)</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                                  <span>Elevated (30-49)</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <div className="h-3 w-3 rounded-full bg-orange-500" />
-                                  <span>High (50-69)</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <div className="h-3 w-3 rounded-full bg-red-500" />
-                                  <span>Critical (70+)</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold">Route Path</h3>
-                        <div className="rounded-lg border border-border/50 bg-card/30 p-4">
-                          {routeData.route.map((hub, index) => (
-                            <div key={hub.hub_id}>
-                              <div className="flex items-center gap-3 py-2">
-                                <div
-                                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium text-white"
-                                  style={{
-                                    backgroundColor: getRiskColor(
-                                      hub.risk_score,
-                                    ),
-                                  }}
-                                >
-                                  {index + 1}
-                                </div>
-                                <div className="flex-1">
-                                  <p className="font-medium">{hub.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Risk Score: {hub.risk_score}
-                                  </p>
-                                </div>
-                              </div>
-                              {index < routeData.route.length - 1 && (
-                                <div className="ml-4 flex items-center gap-2 py-1">
-                                  <div className="h-4 w-px bg-border" />
-                                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold">
-                          Recommendation
-                        </h3>
-                        <div className="rounded-lg border border-border/50 bg-muted/20 p-3 text-sm text-muted-foreground">
-                          {getRouteRecommendation(routeData.average_risk_score)}
-                        </div>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

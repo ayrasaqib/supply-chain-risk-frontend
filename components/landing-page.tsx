@@ -25,7 +25,7 @@ const features = [
     icon: Globe,
     title: "Global Hub Monitoring",
     description:
-      "Track risk across 50+ major ports, airports, and distribution centers worldwide in real-time.",
+      "Track risk across 1K+ major ports, airports, and distribution centers worldwide in real-time.",
   },
   {
     icon: BarChart3,

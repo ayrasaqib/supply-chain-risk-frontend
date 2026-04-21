@@ -27,6 +27,48 @@ import type { SupplyChainHub, RiskSummary } from "@/lib/types"
 
 const TOP_HUB_COUNT = 20
 
+function createPendingSearchHub(location: DashboardLocation): SupplyChainHub {
+  return {
+    id: location.hub_id,
+    name: location.name,
+    location: {
+      latitude: location.lat,
+      longitude: location.lon,
+    },
+    country: location.country,
+    region: location.region,
+    type: "port",
+    riskScore: 0,
+    riskLevel: "low",
+    riskFactors: {
+      weather: {
+        score: 0,
+        stormProbability: 0,
+        floodRisk: 0,
+        temperatureAnomaly: 0,
+        forecast: "Loading risk analysis...",
+      },
+      logistics: {
+        score: 0,
+        portCongestion: 0,
+        shippingDelays: 0,
+        capacityUtilization: 0,
+        vesselTraffic: 0,
+      },
+      geopolitical: {
+        score: 0,
+        tradeRestrictions: 0,
+        regionalStability: 100,
+        regulatoryChanges: 0,
+      },
+    },
+    weeklyForecast: [],
+    lastUpdated: new Date(),
+    alerts: [],
+    riskDataAvailable: false,
+  }
+}
+
 // Dynamically import the map component to avoid SSR issues with react-simple-maps
 const SupplyChainMap = dynamic(
   () =>
@@ -116,6 +158,17 @@ export default function DashboardPage() {
   const loadSearchHub = useCallback(async (location: DashboardLocation) => {
     setLoadingHubId(location.hub_id)
     setHubLoadError(null)
+    setSelectedRegion(location.region)
+
+    const pendingHub = createPendingSearchHub(location)
+    setHubs((current) => {
+      if (current.some((item) => item.id === pendingHub.id)) {
+        return current
+      }
+
+      return [...current, pendingHub]
+    })
+    setSelectedHub(pendingHub)
 
     try {
       const refreshedHub = await refreshDashboardHub(location)

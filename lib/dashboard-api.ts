@@ -227,7 +227,7 @@ const COUNTRY_TO_REGION: Record<string, string> = {
   yemen: "Middle East",
 }
 
-export const DEFAULT_MONITORED_HUB_LIMIT = 60
+export const DEFAULT_MONITORED_HUB_LIMIT = 70
 export const DEFAULT_MONITORED_HUB_SOURCE_LIMIT = 250
 
 interface LocationListItem {
