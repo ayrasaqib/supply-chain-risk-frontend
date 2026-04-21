@@ -18,8 +18,7 @@ const GEO_URL =
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
-  const { user, isLoading: authLoading, logout } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +26,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (user || authLoading) {
+    if (!authLoading && user) {
       router.push("/dashboard");
     }
   }, [user, authLoading, router]);

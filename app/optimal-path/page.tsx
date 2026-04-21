@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ComposableMap,
   Geographies,
@@ -15,10 +14,9 @@ import {
   ArrowRight,
   MapPin,
   AlertTriangle,
-  LogOut,
   Loader2,
+  Map as MapIcon,
 } from "lucide-react";
-import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -141,7 +139,7 @@ function getSegmentRiskColor(score1: number, score2: number): string {
 
 export default function OptimalPathPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [hubs, setHubs] = useState<SupplyChainHub[]>([]);
   const [startHub, setStartHub] = useState<string>("");
@@ -164,12 +162,6 @@ export default function OptimalPathPage() {
       setHubs(data);
     }
   }, [user]);
-
-  // Handle logout
-  const handleLogout = () => {
-    logout();
-    router.push("/");
-  };
 
   // Calculate route
   const handleCalculateRoute = async () => {
@@ -234,7 +226,7 @@ export default function OptimalPathPage() {
           {
             href: "/dashboard",
             label: "Dashboard",
-            icon: <MapPin className="h-4 w-4" />,
+            icon: <MapIcon className="h-4 w-4" />,
           },
           {
             href: "/custom-location",

@@ -1,15 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  Activity,
   ArrowRight,
+  BarChart3,
   Globe,
   Shield,
   TrendingUp,
   Zap,
   Route,
   MapPin,
-  BarChart3,
   Bot,
 } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
@@ -17,32 +19,29 @@ import { Button } from "@/components/ui/button";
 import { demoHubs, SupplyChainMap } from "./demo-map";
 import { scrollToSection } from "./ui/scroll";
 import { useReveal } from "@/hooks/use-reveal";
-import { NavBar } from "./ui/navbar";
 
 const features = [
   {
     icon: Globe,
     title: "Global Hub Monitoring",
     description:
-      "Track risk factors across major ports, airports, and distribution centers worldwide in real-time.",
+      "Track risk across 50+ major ports, airports, and distribution centers worldwide in real-time.",
   },
   {
-    icon: Shield,
-    title: "Risk Assessment",
-    description:
-      "Comprehensive risk scoring based on weather, geopolitical stability, infrastructure, and more.",
+    icon: BarChart3,
+    title: "Data-Driven Insights",
+    description: "Risk scoring is powered by comprehensive weather and geopolitical event data.",
   },
   {
     icon: Bot,
-    title: "AI Model Analytics",
+    title: "Machine Learning Risk Analytics",
     description:
-      "AI-powered evaluation model to anticipate disruptions before they impact your supply chain.",
+      "Machine learning model powers predictive insight on potential disruption up to 7 days in advance.",
   },
   {
     icon: Zap,
     title: "Real-time Alerts",
-    description:
-      "Instant notifications when risk levels change at any of your monitored locations.",
+    description: "Instant notifications when risk levels change at any of the locations you subscribe to.",
   },
   {
     icon: MapPin,
@@ -54,7 +53,7 @@ const features = [
     icon: Route,
     title: "Optimal Route",
     description:
-      "Specialised algorithm designed to find routes with optimal risk scores",
+      "Specialised algorithm designed to find route to a destination balancing optimal distance and risk scores",
   },
 ];
 
@@ -62,15 +61,101 @@ const stats = [
   { value: "50+", label: "Global Hubs", sublabel: "Monitored" },
   { value: "99.9%", label: "Uptime", sublabel: "Reliability" },
   { value: "15+", label: "Risk Factors", sublabel: "Analyzed" },
-  { value: "24/7", label: "Monitoring", sublabel: "Coverage" },
+  { value: "24/7", label: "Monitoring", sublabel: "Availability" },
 ];
 
+const navItems = [
+  { id: "stats", label: "Platform" },
+  { id: "features", label: "Features" },
+  { id: "pricing", label: "Pricing" },
+] as const;
+
 export function LandingPage() {
+  const [activeSection, setActiveSection] =
+    useState<(typeof navItems)[number]["id"]>("stats");
+
   useReveal();
+
+  useEffect(() => {
+    const sections = navItems
+      .map(({ id }) => document.getElementById(id))
+      .filter((section): section is HTMLElement => section !== null);
+
+    if (!sections.length) {
+      return;
+    }
+
+    const updateActiveSection = () => {
+      const triggerLine = 140;
+      let currentSection = sections[0].id as (typeof navItems)[number]["id"];
+
+      for (const section of sections) {
+        const { top } = section.getBoundingClientRect();
+
+        if (top <= triggerLine) {
+          currentSection = section.id as (typeof navItems)[number]["id"];
+        } else {
+          break;
+        }
+      }
+
+      setActiveSection(currentSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       {/* HEADER */}
-      <NavBar variant="landing"></NavBar>
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <Link href="/" className="flex items-center gap-2">
+            <AppLogo />
+            <span className="font-semibold tracking-tight">IntelliSupply</span>
+          </Link>
+          <nav className="hidden md:flex items-center gap-3">
+            {navItems.map((item) => {
+              const isActive = activeSection === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className={`rounded-full px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Log in
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button size="sm">Get Started</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
 
       {/* HERO */}
       <section className="relative overflow-hidden py-24 md:py-32">
@@ -109,36 +194,71 @@ export function LandingPage() {
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-
-              <Link href="/login">
-                <Button
-                  size="lg"
-                  className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 transition-all"
-                >
-                  Try Live Map
-                </Button>
-              </Link>
             </div>
           </div>
 
           {/* MAP PREVIEW */}
           <div className="reveal delay-200 mt-16 relative">
-            {/* tighter glow */}
             <div className="absolute inset-0 -z-10 flex items-center justify-center">
-              <div className="h-[420px] w-[85%] rounded-full bg-primary/20 blur-2xl opacity-60" />
-            </div>
-            <div className="absolute left-4 top-4 z-10 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs text-muted-foreground backdrop-blur-md">
-              Global Risk Network Example
+              <div className="h-[460px] w-[88%] rounded-full bg-primary/20 blur-3xl opacity-60" />
             </div>
 
-            <div className="relative h-[420px] w-full overflow-hidden rounded-[28px]">
-              <SupplyChainMap
-                hubs={demoHubs}
-                selectedHub={null}
-                onSelectHub={() => {}}
-              />
+            <div className="overflow-hidden rounded-[28px] border border-border/60 bg-card/70 shadow-2xl shadow-black/25 backdrop-blur-xl">
+              <div className="border-b border-border/60 bg-background/85 backdrop-blur-sm">
+                <div className="flex flex-col gap-4 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Activity className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground md:text-base">
+                        Supply Chain Risk Monitor
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Monitoring 1K+ global supply chain hubs
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_60%,rgba(0,0,0,0.6))]" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
+                      18 Low
+                    </div>
+                    <div className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300">
+                      14 Elevated
+                    </div>
+                    <div className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-xs font-medium text-orange-300">
+                      11 High
+                    </div>
+                    <div className="rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300">
+                      7 Critical
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-border/50 bg-muted/20 px-4 py-2 text-xs text-muted-foreground md:px-5">
+                  <span>Avg Risk 47</span>
+                  <span>Updated moments ago</span>
+                </div>
+              </div>
+
+              <div className="relative h-[420px] w-full overflow-hidden bg-slate-950">
+                <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 backdrop-blur-md">
+                  <div className="text-[11px] font-medium text-slate-100">Global view</div>
+                  <div className="mt-1 text-[11px] text-slate-400">
+                    Top-risk hubs and clusters
+                  </div>
+                </div>
+
+                <SupplyChainMap
+                  hubs={demoHubs}
+                  selectedHub={null}
+                  selectedRegion={null}
+                  onSelectHub={() => {}}
+                />
+
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_60%,rgba(2,6,23,0.72))]" />
+              </div>
             </div>
           </div>
         </div>
@@ -169,7 +289,7 @@ export function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold">
-              Everything you need to manage supply chain risk
+              Everything you need to proactively manage supply chain risk
             </h2>
             <p className="mt-4 text-muted-foreground">
               Comprehensive tools and insights to keep your operations running
@@ -220,9 +340,11 @@ export function LandingPage() {
                 <li>• Track up to 5 ports</li>
                 <li>• Basic risk insights</li>
               </ul>
-              <Button className="mt-6 w-full" variant="outline">
-                Get Started
-              </Button>
+              <Link href="/register">
+                <Button className="mt-6 w-full" variant="outline">
+                  Get Started
+                </Button>
+              </Link>
             </div>
 
             <div className="relative rounded-xl border border-primary/40 bg-primary/10 p-6 scale-105 shadow-xl shadow-primary/10">

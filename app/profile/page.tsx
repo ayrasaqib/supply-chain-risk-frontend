@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { NavBar } from "@/components/ui/navbar";
 import { useRouter } from "next/navigation";
 import { useSupplyChain } from "@/lib/supply-chain-context";
-import { Check } from "lucide-react";
+import { Check, Map } from "lucide-react";
 
 export default function ProfilePage() {
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -39,7 +39,15 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* NAVBAR */}
-      <NavBar variant="auth" />
+      <NavBar
+        actions={[
+          {
+            href: "/dashboard",
+            label: "Dashboard",
+            icon: <Map className="h-4 w-4" />,
+          },
+        ]}
+      />
 
       {/* CONTENT */}
       <main className="container mx-auto px-6 py-10">
@@ -65,7 +73,9 @@ export default function ProfilePage() {
               Plan: Starter
             </div>
 
-            <Button className="mt-6">Edit Profile</Button>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button>Edit Profile</Button>
+            </div>
           </section>
 
           {/* ALERTS (NOTIFICATIONS) */}

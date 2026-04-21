@@ -37,11 +37,10 @@ export function getRiskLevelLabel(level: RiskLevel): string {
 export function generateWeatherRisk(region: string): WeatherRisk {
   const regionProfiles: Record<string, { baseRisk: number; stormFactor: number; floodFactor: number }> = {
     "East Asia": { baseRisk: 45, stormFactor: 0.7, floodFactor: 0.6 },
-    "Southeast Asia": { baseRisk: 55, stormFactor: 0.8, floodFactor: 0.75 },
+    "Southeast Asia": { baseRisk: 53, stormFactor: 0.75, floodFactor: 0.72 },
     "Europe": { baseRisk: 25, stormFactor: 0.3, floodFactor: 0.4 },
     "North America": { baseRisk: 35, stormFactor: 0.5, floodFactor: 0.45 },
     "Middle East": { baseRisk: 20, stormFactor: 0.15, floodFactor: 0.1 },
-    "South Asia": { baseRisk: 50, stormFactor: 0.65, floodFactor: 0.7 },
     "South America": { baseRisk: 40, stormFactor: 0.4, floodFactor: 0.5 },
     "Oceania": { baseRisk: 30, stormFactor: 0.35, floodFactor: 0.3 },
     "Africa": { baseRisk: 35, stormFactor: 0.4, floodFactor: 0.45 },
@@ -101,11 +100,10 @@ export function generateLogisticsRisk(hubType: string): LogisticsRisk {
 export function generateGeopoliticalRisk(region: string): GeopoliticalRisk {
   const regionProfiles: Record<string, { baseRisk: number; tradeFactor: number; stabilityFactor: number }> = {
     "East Asia": { baseRisk: 45, tradeFactor: 0.5, stabilityFactor: 0.7 },
-    "Southeast Asia": { baseRisk: 35, tradeFactor: 0.4, stabilityFactor: 0.75 },
+    "Southeast Asia": { baseRisk: 38, tradeFactor: 0.43, stabilityFactor: 0.7 },
     "Europe": { baseRisk: 30, tradeFactor: 0.35, stabilityFactor: 0.85 },
     "North America": { baseRisk: 25, tradeFactor: 0.3, stabilityFactor: 0.9 },
     "Middle East": { baseRisk: 50, tradeFactor: 0.55, stabilityFactor: 0.6 },
-    "South Asia": { baseRisk: 40, tradeFactor: 0.45, stabilityFactor: 0.65 },
     "South America": { baseRisk: 35, tradeFactor: 0.4, stabilityFactor: 0.7 },
     "Oceania": { baseRisk: 20, tradeFactor: 0.25, stabilityFactor: 0.9 },
     "Africa": { baseRisk: 45, tradeFactor: 0.5, stabilityFactor: 0.6 },
