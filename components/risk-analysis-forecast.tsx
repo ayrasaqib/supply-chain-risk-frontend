@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Minus, TrendingDown, TrendingUp } from "lucide-react"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import {
@@ -112,16 +113,154 @@ function WeeklyTrend({ forecast }: { forecast: ForecastEntry[] }) {
 }
 
 function CombinedRiskTrendChart({ forecast }: { forecast: ForecastEntry[] }) {
+  const [graphUrl, setGraphUrl] = useState<string | null>(null)
+  const [isLoadingGraph, setIsLoadingGraph] = useState(false)
+  const [graphError, setGraphError] = useState<string | null>(null)
+
   const chartData = forecast.map((day) => ({
     day: day.date.toLocaleDateString("en-US", { weekday: "short" }),
     fullDate: day.date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     riskScore: day.riskScore,
   }))
 
+  useEffect(() => {
+    if (forecast.length === 0) {
+      setGraphUrl(null)
+      setGraphError(null)
+      return
+    }
+
+    const controller = new AbortController()
+
+    const loadGraph = async () => {
+      setIsLoadingGraph(true)
+      setGraphError(null)
+
+      try {
+        const response = await fetch("/api/visualise/forecast", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            forecast: forecast.map((day) => ({
+              date: day.date.toISOString(),
+              riskScore: day.riskScore,
+            })),
+          }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          const errorBody = (await response.json().catch(() => null)) as
+            | { error?: string }
+            | null
+          throw new Error(
+            errorBody?.error ?? `Request failed with status ${response.status}`
+          )
+        }
+
+        const body = (await response.json()) as { url?: string | null }
+        setGraphUrl(body.url ?? null)
+        if (!body.url) {
+          setGraphError("Visualization API returned no graph URL.")
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setGraphUrl(null)
+        setGraphError(
+          error instanceof Error ? error.message : "Failed to load visualisation."
+        )
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingGraph(false)
+        }
+      }
+    }
+
+    void loadGraph()
+
+    return () => {
+      controller.abort()
+    }
+  }, [forecast])
+
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">Combined Risk Score Trend</h3>
-      <div className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 p-3">
+      <div
+        className={cn(
+          "overflow-hidden rounded-lg border border-slate-800 bg-slate-950",
+          graphUrl ? "p-1 sm:p-2" : "p-3"
+        )}
+      >
+        {isLoadingGraph ? (
+          <div className="flex h-[300px] items-center justify-center text-sm text-slate-400">
+            Loading visualisation...
+          </div>
+        ) : graphUrl ? (
+          <img
+            src={graphUrl}
+            alt="Combined risk score trend visualisation"
+            className="block h-[300px] w-full rounded-md bg-white object-contain sm:h-[320px]"
+          />
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+              {graphError ?? "No visualisation available. Showing fallback chart."}
+            </div>
+            <ChartContainer
+              config={{
+                riskScore: {
+                  label: "Combined Risk Score",
+                  color: "#f97316",
+                },
+              }}
+              className="h-[260px] min-h-[260px] w-full"
+            >
+              <LineChart data={chartData} margin={{ top: 12, right: 20, left: 8, bottom: 8 }}>
+                <CartesianGrid vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                  stroke="#94a3b8"
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                  stroke="#94a3b8"
+                  tickFormatter={(value) => `${value}%`}
+                />
+                <ChartTooltip
+                  cursor={{ stroke: "rgba(249, 115, 22, 0.3)", strokeWidth: 1 }}
+                  content={
+                    <ChartTooltipContent
+                      labelKey="fullDate"
+                      formatter={(value) => [`${value}%`, "Combined Risk Score"]}
+                    />
+                  }
+                />
+                <Line
+                  type="monotone"
+                  dataKey="riskScore"
+                  stroke="var(--color-riskScore)"
+                  strokeWidth={3}
+                  dot={{ fill: "#f97316", r: 4, strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: "#fdba74", stroke: "#f97316", strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ChartContainer>
+          </div>
+        )}
+
+        {/*
         <ChartContainer
           config={{
             riskScore: {
@@ -167,6 +306,7 @@ function CombinedRiskTrendChart({ forecast }: { forecast: ForecastEntry[] }) {
             />
           </LineChart>
         </ChartContainer>
+        */}
       </div>
     </div>
   )
