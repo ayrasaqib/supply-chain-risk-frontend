@@ -661,11 +661,58 @@ function mapDailyForecast(event: RiskEventResponse): DailyRisk | null {
       event.attribute.mean_risk_score
     )
   )
+  const weatherScoreValue = getFirstDefinedNumber(
+    event.attribute.weather_risk_score,
+    event.attribute.weather_score,
+    event.attribute.weather_risk,
+    getComponentScore(event.attribute.weather_component),
+    ...((event.attribute.snapshots ?? []).map((snapshot) =>
+      getFirstDefinedNumber(
+        snapshot.weather_risk_score,
+        snapshot.weather_score,
+        snapshot.weather_risk
+      )
+    ))
+  )
+  const geopoliticalScoreValue = getFirstDefinedNumber(
+    event.attribute.geopolitical_risk_score,
+    event.attribute.geopolitical_score,
+    event.attribute.geopolitical_risk,
+    event.attribute.geo_risk_score,
+    getComponentScore(event.attribute.geopolitical_component),
+    ...((event.attribute.snapshots ?? []).map((snapshot) =>
+      getFirstDefinedNumber(
+        snapshot.geopolitical_risk_score,
+        snapshot.geopolitical_score,
+        snapshot.geopolitical_risk,
+        snapshot.geo_risk_score
+      )
+    ))
+  )
 
   return {
     date: parseDate(event.attribute.date) ?? new Date(),
     riskScore,
     riskLevel: normalizeRiskLevel(event.attribute.combined_risk_level, riskScore),
+    weather:
+      weatherScoreValue !== undefined
+        ? {
+            score: normalizeRiskScore(weatherScoreValue),
+            stormProbability: 0,
+            floodRisk: 0,
+            temperatureAnomaly: 0,
+            forecast: event.attribute.primary_driver ?? "Weather risk outlook",
+          }
+        : undefined,
+    geopolitical:
+      geopoliticalScoreValue !== undefined
+        ? {
+            score: normalizeRiskScore(geopoliticalScoreValue),
+            tradeRestrictions: 0,
+            regionalStability: 0,
+            regulatoryChanges: 0,
+          }
+        : undefined,
     primaryDriver: event.attribute.primary_driver ?? "Unknown",
   }
 }
@@ -976,5 +1023,28 @@ export async function refreshDashboardHub(location: DashboardLocation): Promise<
   )
 
   const risk = await fetchRiskAnalysisWithRetry(location.hub_id)
+  return mapLocationRisk(location, risk)
+}
+
+export async function fetchDashboardHubRisk(location: DashboardLocation): Promise<SupplyChainHub> {
+  let risk: RiskLocationResponse
+
+  try {
+    risk = await fetchJson<RiskLocationResponse>(
+      `/ese/v1/risk/location/${encodeURIComponent(location.hub_id)}`
+    )
+  } catch (error) {
+    if (!(error instanceof DashboardApiError) || error.status !== 404) {
+      throw error
+    }
+
+    await fetchJson<{ message?: string }>(
+      `/ese/v1/ingest/weather/${encodeURIComponent(location.hub_id)}`,
+      { method: "POST" }
+    )
+
+    risk = await fetchRiskAnalysisWithRetry(location.hub_id)
+  }
+
   return mapLocationRisk(location, risk)
 }

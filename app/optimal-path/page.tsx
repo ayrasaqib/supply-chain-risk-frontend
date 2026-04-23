@@ -176,6 +176,32 @@ function getRouteViewport(route: RouteHub[] | null): RouteViewport {
   };
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getMarkerMetrics(zoom: number, isInRoute: boolean, isEndpoint: boolean) {
+  const zoomScale = clamp(1 / Math.max(zoom, 1), 0.45, 1.15);
+
+  if (!isInRoute) {
+    return {
+      radius: clamp(4 * zoomScale, 2, 4.5),
+      strokeWidth: clamp(1 * zoomScale, 0.75, 1.25),
+      fontSize: 0,
+      labelOffsetY: 0,
+    };
+  }
+
+  const baseRadius = isEndpoint ? 9 : 7;
+
+  return {
+    radius: clamp(baseRadius * zoomScale, isEndpoint ? 4.75 : 4, isEndpoint ? 9.5 : 7.5),
+    strokeWidth: clamp(2 * zoomScale, 1, 2),
+    fontSize: clamp(9 * zoomScale, 5, 9),
+    labelOffsetY: clamp(4 * zoomScale, 2.5, 4),
+  };
+}
+
 function HubSearchDropdown({
   hubs,
   value,
@@ -614,27 +640,32 @@ export default function OptimalPathPage() {
                 const isEndpoint =
                   routeIndex === 0 ||
                   routeIndex === (routeData?.route.length ?? 0) - 1;
+                const markerMetrics = getMarkerMetrics(
+                  mapPosition.zoom,
+                  isInRoute,
+                  isEndpoint,
+                );
 
                 return (
                   <Marker key={hub.id} coordinates={[hub.lon, hub.lat]}>
                     <circle
-                      r={isInRoute ? (isEndpoint ? 9 : 7) : 4}
+                      r={markerMetrics.radius}
                       fill={
                         isInRoute
                           ? getRiskColor(routeRiskScoresByHubId.get(hub.id) ?? null)
                           : "#475569"
                       }
                       stroke={isInRoute ? "#fff" : "#64748b"}
-                      strokeWidth={isInRoute ? 2 : 1}
+                      strokeWidth={markerMetrics.strokeWidth}
                       opacity={isInRoute ? 1 : 0.5}
                     />
                     {isInRoute && routeIndex >= 0 && (
                       <text
                         textAnchor="middle"
-                        y="4"
+                        y={markerMetrics.labelOffsetY}
                         style={{
                           fontFamily: "system-ui",
-                          fontSize: "9px",
+                          fontSize: `${markerMetrics.fontSize}px`,
                           fill: "#fff",
                           fontWeight: 700,
                         }}

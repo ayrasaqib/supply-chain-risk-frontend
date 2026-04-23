@@ -15,9 +15,10 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchDashboardSearchLocations,
-  refreshDashboardHub,
+  fetchDashboardHubRisk,
   type DashboardLocation,
 } from "@/lib/dashboard-api";
+import { WatchlistRiskTrendChart } from "@/components/watchlist-risk-trend-chart";
 import { NavBar } from "@/components/ui/navbar";
 import { Button } from "@/components/ui/button";
 import {
@@ -251,6 +252,7 @@ export default function ProfilePage() {
   const [expandedHubId, setExpandedHubId] = useState<string | null>(null);
   const [riskDetailsByHubId, setRiskDetailsByHubId] = useState<Record<string, SupplyChainHub>>({});
   const [loadingRiskHubId, setLoadingRiskHubId] = useState<string | null>(null);
+  const [isLoadingTrendData, setIsLoadingTrendData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const email = user?.email ?? "";
@@ -317,6 +319,14 @@ export default function ProfilePage() {
 
   const selectedHubIsSubscribed = selectedHub ? watchlistHubIds.includes(selectedHub.id) : false;
 
+  const watchlistRiskTrendHubs = useMemo(
+    () =>
+      watchlistHubs
+        .map((hub) => riskDetailsByHubId[hub.id])
+        .filter((hub): hub is SupplyChainHub => hub !== undefined),
+    [riskDetailsByHubId, watchlistHubs]
+  );
+
   const refreshWatchlistData = async () => {
     if (!email) return;
 
@@ -341,7 +351,8 @@ export default function ProfilePage() {
     setLoadingRiskHubId(hub.id);
 
     try {
-      const riskHub = await refreshDashboardHub(hub);
+      const riskHub =
+        riskDetailsByHubId[hub.id] ?? (await fetchDashboardHubRisk(hub));
       setRiskDetailsByHubId((current) => ({
         ...current,
         [hub.id]: riskHub,
@@ -356,6 +367,50 @@ export default function ProfilePage() {
       setLoadingRiskHubId(null);
     }
   };
+
+  useEffect(() => {
+    const missingHubs = watchlistHubs.filter((hub) => !riskDetailsByHubId[hub.id]);
+
+    if (missingHubs.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingTrendData(true);
+
+    void Promise.allSettled(
+      missingHubs.map(async (hub) => ({
+        hubId: hub.id,
+        riskHub: await fetchDashboardHubRisk(hub),
+      }))
+    )
+      .then((results) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRiskDetailsByHubId((current) => {
+          const next = { ...current };
+
+          for (const result of results) {
+            if (result.status === "fulfilled") {
+              next[result.value.hubId] = result.value.riskHub;
+            }
+          }
+
+          return next;
+        });
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingTrendData(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [riskDetailsByHubId, watchlistHubs]);
 
   const handleSubscribe = async () => {
     if (!selectedHub || !email) return;
@@ -579,6 +634,11 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      <WatchlistRiskTrendChart
+                        hubs={watchlistRiskTrendHubs}
+                        isLoading={isLoadingTrendData}
+                      />
+
                       {watchlistHubs.map((hub) => (
                         <div
                           key={hub.id}
