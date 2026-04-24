@@ -52,9 +52,7 @@ export function NavBar({
             {branding}
           </Link>
         ) : (
-          <div className="flex shrink-0 items-center gap-2">
-            {branding}
-          </div>
+          <div className="flex shrink-0 items-center gap-2">{branding}</div>
         )}
 
         {/* CENTER (landing only) */}
@@ -91,7 +89,9 @@ export function NavBar({
                 </Button>
               </Link>
               <Link href="/register">
-                <Button size="sm" className="h-10 px-4">Get Started</Button>
+                <Button size="sm" className="h-10 px-4">
+                  Get Started
+                </Button>
               </Link>
             </>
           ) : (
@@ -113,6 +113,7 @@ export function NavBar({
               {/* AVATAR DROPDOWN */}
               <div className="relative">
                 <button
+                  data-testid="user-menu-button"
                   onClick={() => setMenuOpen(!menuOpen)}
                   className="flex h-10 items-center gap-2 rounded-full px-2 hover:bg-accent"
                 >
