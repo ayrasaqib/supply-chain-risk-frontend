@@ -40,10 +40,18 @@ export default function LoginPage() {
 
     if (result.success) {
       router.push("/dashboard");
-    } else {
-      setError(result.error || "Login failed");
-      setIsLoading(false);
+      return;
     }
+
+    if (result.error === "User not confirmed") {
+      router.push(
+        `/confirm?email=${encodeURIComponent(email)}&returnTo=/dashboard`,
+      );
+      return;
+    }
+
+    setError(result.error || "Login failed");
+    setIsLoading(false);
   };
 
   return (

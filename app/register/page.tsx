@@ -53,7 +53,11 @@ export default function RegisterPage() {
     const result = await register(name, email, password);
 
     if (result.success) {
-      router.push("/dashboard");
+      const returnTo = "/dashboard";
+
+      router.push(
+        `/confirm?email=${encodeURIComponent(email)}&returnTo=${encodeURIComponent(returnTo)}`,
+      );
     } else {
       setError(result.error || "Registration failed");
       setIsLoading(false);
