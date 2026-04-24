@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NavBar } from "@/components/ui/navbar";
 import { BackgroundMap } from "@/components/ui/background-map";
+import { signIn } from "aws-amplify/auth";
 
 export default function ConfirmPage() {
   const router = useRouter();
@@ -29,14 +30,29 @@ export default function ConfirmPage() {
     setIsLoading(true);
 
     try {
+      // 1. confirm account
       await confirmSignUp({
         username: email,
         confirmationCode: code,
       });
 
+      // 2. try auto-login using stored password
+      const password = sessionStorage.getItem("temp_password");
+
+      if (password) {
+        await signIn({
+          username: email,
+          password,
+        });
+
+        sessionStorage.removeItem("temp_password");
+      }
+
+      // 3. redirect
       router.push(returnTo);
     } catch (err: any) {
       setError(err.message || "Confirmation failed");
+    } finally {
       setIsLoading(false);
     }
   };
