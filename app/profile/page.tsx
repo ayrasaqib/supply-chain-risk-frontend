@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { EditProfileDialog } from "./edit-profile-dialog";
+import { ChangePasswordDialog } from "./change-password-dialog";
 import {
   Bell,
   Check,
@@ -44,6 +46,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { SupplyChainHub } from "@/lib/types";
+import {
+  fetchUserProfile,
+  updateUserProfile,
+  changePassword,
+} from "@/lib/auth-api";
 
 interface HubSearchOption extends DashboardLocation {
   id: string;
@@ -61,7 +68,9 @@ interface ApiErrorResponse {
 }
 
 function getString(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
 }
 
 function normalizeWatchlistHubIds(payload: unknown): string[] {
@@ -79,19 +88,22 @@ function normalizeWatchlistHubIds(payload: unknown): string[] {
     return null;
   };
 
-  const source =
-    Array.isArray(payload)
-      ? payload
-      : typeof payload === "object" && payload !== null
-        ? ((payload as Record<string, unknown>).hubs as unknown[]) ??
-          ((payload as Record<string, unknown>).hub_ids as unknown[]) ??
-          ((payload as Record<string, unknown>).watchlist as unknown[]) ??
-          ((payload as Record<string, unknown>).items as unknown[]) ??
-          []
-        : [];
+  const source = Array.isArray(payload)
+    ? payload
+    : typeof payload === "object" && payload !== null
+      ? (((payload as Record<string, unknown>).hubs as unknown[]) ??
+        ((payload as Record<string, unknown>).hub_ids as unknown[]) ??
+        ((payload as Record<string, unknown>).watchlist as unknown[]) ??
+        ((payload as Record<string, unknown>).items as unknown[]) ??
+        [])
+      : [];
 
   return Array.from(
-    new Set(source.map(extractHubId).filter((hubId): hubId is string => typeof hubId === "string"))
+    new Set(
+      source
+        .map(extractHubId)
+        .filter((hubId): hubId is string => typeof hubId === "string"),
+    ),
   );
 }
 
@@ -133,7 +145,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 async function fetchWatchlist(email: string) {
   const response = await fetchJson<unknown>(
-    `/api/watchlist?email=${encodeURIComponent(email)}`
+    `/api/watchlist?email=${encodeURIComponent(email)}`,
   );
   return normalizeWatchlistHubIds(response);
 }
@@ -141,14 +153,14 @@ async function fetchWatchlist(email: string) {
 async function subscribeToHub(hubId: string, email: string) {
   await fetchJson<unknown>(
     `/api/watchlist?hub_id=${encodeURIComponent(hubId)}&email=${encodeURIComponent(email)}`,
-    { method: "POST" }
+    { method: "POST" },
   );
 }
 
 async function unsubscribeFromHub(hubId: string, email: string) {
   await fetchJson<unknown>(
     `/api/watchlist?hub_id=${encodeURIComponent(hubId)}&email=${encodeURIComponent(email)}`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 }
 
@@ -212,7 +224,7 @@ function HubSearchDropdown({
                   <Check
                     className={cn(
                       "h-4 w-4",
-                      value === hub.id ? "opacity-100" : "opacity-0"
+                      value === hub.id ? "opacity-100" : "opacity-0",
                     )}
                   />
                   <div className="min-w-0 flex-1">
@@ -240,9 +252,8 @@ function getRiskColor(score: number | null | undefined) {
 }
 
 export default function ProfilePage() {
-  const { user, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoading: authLoading, logout, deleteAccount } = useAuth();
   const router = useRouter();
-
   const [allHubs, setAllHubs] = useState<HubSearchOption[]>([]);
   const [watchlistHubIds, setWatchlistHubIds] = useState<string[]>([]);
   const [messages, setMessages] = useState<WatchlistMessage[]>([]);
@@ -250,16 +261,44 @@ export default function ProfilePage() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedHubId, setExpandedHubId] = useState<string | null>(null);
-  const [riskDetailsByHubId, setRiskDetailsByHubId] = useState<Record<string, SupplyChainHub>>({});
+  const [riskDetailsByHubId, setRiskDetailsByHubId] = useState<
+    Record<string, SupplyChainHub>
+  >({});
   const [loadingRiskHubId, setLoadingRiskHubId] = useState<string | null>(null);
   const [isLoadingTrendData, setIsLoadingTrendData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [profile, setProfile] = useState<{
+    username?: string;
+    email?: string;
+    company_name?: string;
+  } | null>(null);
+
+  const [loadingProfileData, setLoadingProfileData] = useState(true);
+
   const email = user?.email ?? "";
+
+  useEffect(() => {
+    if (!user) return;
+
+    setLoadingProfileData(true);
+
+    fetchUserProfile()
+      .then((data: any) => {
+        setProfile(data);
+      })
+      .catch((err) => {
+        console.error("Profile load failed:", err);
+        setProfile(null);
+      })
+      .finally(() => {
+        setLoadingProfileData(false);
+      });
+  }, [user]);
 
   const handleLogout = () => {
     logout();
-  router.push("/");
+    router.push("/");
   };
 
   useEffect(() => {
@@ -289,7 +328,7 @@ export default function ProfilePage() {
           locations.map((location) => ({
             ...location,
             id: location.hub_id,
-          }))
+          })),
         );
         setWatchlistHubIds(watchlist);
       })
@@ -297,7 +336,7 @@ export default function ProfilePage() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Failed to load profile watchlist data."
+            : "Failed to load profile watchlist data.",
         );
       })
       .finally(() => {
@@ -307,24 +346,27 @@ export default function ProfilePage() {
 
   const selectedHub = useMemo(
     () => allHubs.find((hub) => hub.id === selectedHubId) ?? null,
-    [allHubs, selectedHubId]
+    [allHubs, selectedHubId],
   );
 
   const watchlistHubs = useMemo(
-    () => watchlistHubIds
-      .map((hubId) => allHubs.find((hub) => hub.id === hubId))
-      .filter((hub): hub is HubSearchOption => hub !== undefined),
-    [allHubs, watchlistHubIds]
+    () =>
+      watchlistHubIds
+        .map((hubId) => allHubs.find((hub) => hub.id === hubId))
+        .filter((hub): hub is HubSearchOption => hub !== undefined),
+    [allHubs, watchlistHubIds],
   );
 
-  const selectedHubIsSubscribed = selectedHub ? watchlistHubIds.includes(selectedHub.id) : false;
+  const selectedHubIsSubscribed = selectedHub
+    ? watchlistHubIds.includes(selectedHub.id)
+    : false;
 
   const watchlistRiskTrendHubs = useMemo(
     () =>
       watchlistHubs
         .map((hub) => riskDetailsByHubId[hub.id])
         .filter((hub): hub is SupplyChainHub => hub !== undefined),
-    [riskDetailsByHubId, watchlistHubs]
+    [riskDetailsByHubId, watchlistHubs],
   );
 
   const refreshWatchlistData = async () => {
@@ -361,7 +403,7 @@ export default function ProfilePage() {
       setError(
         riskError instanceof Error
           ? riskError.message
-          : "Failed to load risk details for this hub."
+          : "Failed to load risk details for this hub.",
       );
     } finally {
       setLoadingRiskHubId(null);
@@ -369,7 +411,9 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    const missingHubs = watchlistHubs.filter((hub) => !riskDetailsByHubId[hub.id]);
+    const missingHubs = watchlistHubs.filter(
+      (hub) => !riskDetailsByHubId[hub.id],
+    );
 
     if (missingHubs.length === 0) {
       return;
@@ -382,7 +426,7 @@ export default function ProfilePage() {
       missingHubs.map(async (hub) => ({
         hubId: hub.id,
         riskHub: await fetchDashboardHubRisk(hub),
-      }))
+      })),
     )
       .then((results) => {
         if (cancelled) {
@@ -425,7 +469,7 @@ export default function ProfilePage() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Failed to subscribe to this hub."
+          : "Failed to subscribe to this hub.",
       );
     } finally {
       setIsSubmitting(false);
@@ -448,7 +492,7 @@ export default function ProfilePage() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Failed to unsubscribe from this hub."
+          : "Failed to unsubscribe from this hub.",
       );
     } finally {
       setIsSubmitting(false);
@@ -482,15 +526,26 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <div className="font-medium">{user.name}</div>
-                <div className="text-sm text-muted-foreground">{user.email}</div>
+                <div className="font-medium">
+                  {profile?.username || user.name}
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  {profile?.email || user.email}
+                </div>
+
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Company: {profile?.company_name || "Not set"}
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 text-sm text-muted-foreground">Plan: Starter</div>
+            <div className="mt-6 text-sm text-muted-foreground">
+              Plan: Starter
+            </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button>Edit Profile</Button>
+              <EditProfileDialog />
             </div>
           </section>
 
@@ -547,8 +602,8 @@ export default function ProfilePage() {
               <div>
                 <h2 className="text-lg font-semibold">Watchlist</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Search any monitored hub, subscribe to add it to your watchlist,
-                  and unsubscribe to remove it.
+                  Search any monitored hub, subscribe to add it to your
+                  watchlist, and unsubscribe to remove it.
                 </p>
               </div>
             </div>
@@ -588,7 +643,9 @@ export default function ProfilePage() {
                           </p>
                         </div>
                         <Badge variant="secondary">
-                          {selectedHubIsSubscribed ? "Subscribed" : "Not subscribed"}
+                          {selectedHubIsSubscribed
+                            ? "Subscribed"
+                            : "Not subscribed"}
                         </Badge>
                       </div>
 
@@ -691,7 +748,9 @@ export default function ProfilePage() {
                                 <p
                                   className={cn(
                                     "mt-1 text-lg font-semibold",
-                                    getRiskColor(riskDetailsByHubId[hub.id]?.riskScore)
+                                    getRiskColor(
+                                      riskDetailsByHubId[hub.id]?.riskScore,
+                                    ),
                                   )}
                                 >
                                   {riskDetailsByHubId[hub.id]?.riskScore ?? "—"}
@@ -705,13 +764,17 @@ export default function ProfilePage() {
                                   className={cn(
                                     "mt-1 text-lg font-semibold",
                                     getRiskColor(
-                                      riskDetailsByHubId[hub.id]?.apiRiskFactors?.weather.score ??
-                                        riskDetailsByHubId[hub.id]?.riskFactors.weather.score
-                                    )
+                                      riskDetailsByHubId[hub.id]?.apiRiskFactors
+                                        ?.weather.score ??
+                                        riskDetailsByHubId[hub.id]?.riskFactors
+                                          .weather.score,
+                                    ),
                                   )}
                                 >
-                                  {riskDetailsByHubId[hub.id]?.apiRiskFactors?.weather.score ??
-                                    riskDetailsByHubId[hub.id]?.riskFactors.weather.score ??
+                                  {riskDetailsByHubId[hub.id]?.apiRiskFactors
+                                    ?.weather.score ??
+                                    riskDetailsByHubId[hub.id]?.riskFactors
+                                      .weather.score ??
                                     "—"}
                                 </p>
                               </div>
@@ -723,13 +786,17 @@ export default function ProfilePage() {
                                   className={cn(
                                     "mt-1 text-lg font-semibold",
                                     getRiskColor(
-                                      riskDetailsByHubId[hub.id]?.apiRiskFactors?.geopolitical.score ??
-                                        riskDetailsByHubId[hub.id]?.riskFactors.geopolitical.score
-                                    )
+                                      riskDetailsByHubId[hub.id]?.apiRiskFactors
+                                        ?.geopolitical.score ??
+                                        riskDetailsByHubId[hub.id]?.riskFactors
+                                          .geopolitical.score,
+                                    ),
                                   )}
                                 >
-                                  {riskDetailsByHubId[hub.id]?.apiRiskFactors?.geopolitical.score ??
-                                    riskDetailsByHubId[hub.id]?.riskFactors.geopolitical.score ??
+                                  {riskDetailsByHubId[hub.id]?.apiRiskFactors
+                                    ?.geopolitical.score ??
+                                    riskDetailsByHubId[hub.id]?.riskFactors
+                                      .geopolitical.score ??
                                     "—"}
                                 </p>
                               </div>
@@ -748,7 +815,27 @@ export default function ProfilePage() {
             <h2 className="mb-4 text-lg font-semibold">Security</h2>
 
             <div className="space-y-4">
-              <Button variant="outline">Change Password</Button>
+              <ChangePasswordDialog />
+
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  const confirmed = window.confirm(
+                    "This will permanently delete your account. This action cannot be undone.",
+                  );
+
+                  if (!confirmed) return;
+
+                  try {
+                    await deleteAccount(); // from useAuth()
+                    router.push("/login");
+                  } catch (err) {
+                    console.error("Failed to delete account:", err);
+                  }
+                }}
+              >
+                Delete Account
+              </Button>
 
               <Button variant="destructive" onClick={handleLogout}>
                 Log Out

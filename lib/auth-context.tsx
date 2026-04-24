@@ -1,117 +1,216 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
+import { signUp, signIn } from "aws-amplify/auth";
+
+import { initAmplify } from "@/lib/amplify-client";
+import { fetchUserProfile } from "@/lib/auth-api";
+import { signOut } from "aws-amplify/auth";
+import { deleteUser } from "aws-amplify/auth";
 
 interface User {
-  id: string
-  name: string
-  email: string
+  id: string;
+  name: string;
+  email: string;
+  companyName?: string;
 }
 
 interface AuthContextType {
-  user: User | null
-  isLoading: boolean
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => void
+  user: User | null;
+  isLoading: boolean;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    companyName?: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  logout: () => void;
+  refreshUser: () => Promise<User | null>;
+  deleteAccount: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "supply-chain-auth"
+const STORAGE_KEY = "supply-chain-auth";
+
+async function safeFetchUserProfile() {
+  try {
+    return await fetchUserProfile();
+  } catch (err) {
+    console.warn(
+      "Profile fetch failed, falling back to Cognito-only user:",
+      err,
+    );
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    initAmplify();
+  }, []);
 
   // Check for existing session on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const parsed = JSON.parse(stored)
-        setUser(parsed.user)
+        const parsed = JSON.parse(stored);
+        setUser(parsed.user);
       } catch {
-        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(STORAGE_KEY);
       }
     }
-    setIsLoading(false)
-  }, [])
+    setIsLoading(false);
+  }, []);
+  const login = async (
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await signOut({ global: true }).catch(() => {});
+      const result = await signIn({
+        username: email,
+        password,
+      });
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    
-    // Get stored users
-    const usersStr = localStorage.getItem("supply-chain-users")
-    const users: Record<string, { name: string; email: string; password: string }> = usersStr ? JSON.parse(usersStr) : {}
-    
-    const userRecord = users[email.toLowerCase()]
-    
-    if (!userRecord) {
-      return { success: false, error: "No account found with this email" }
-    }
-    
-    if (userRecord.password !== password) {
-      return { success: false, error: "Incorrect password" }
-    }
-    
-    const loggedInUser: User = {
-      id: email.toLowerCase(),
-      name: userRecord.name,
-      email: userRecord.email,
-    }
-    
-    setUser(loggedInUser)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: loggedInUser }))
-    
-    return { success: true }
-  }
+      if (!result.isSignedIn) {
+        return {
+          success: false,
+          error: "Login not completed",
+        };
+      }
+      let profileName = email;
 
-  const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    
-    // Get stored users
-    const usersStr = localStorage.getItem("supply-chain-users")
-    const users: Record<string, { name: string; email: string; password: string }> = usersStr ? JSON.parse(usersStr) : {}
-    
-    if (users[email.toLowerCase()]) {
-      return { success: false, error: "An account with this email already exists" }
-    }
-    
-    // Store new user
-    users[email.toLowerCase()] = { name, email: email.toLowerCase(), password }
-    localStorage.setItem("supply-chain-users", JSON.stringify(users))
-    
-    const newUser: User = {
-      id: email.toLowerCase(),
-      name,
-      email: email.toLowerCase(),
-    }
-    
-    setUser(newUser)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: newUser }))
-    
-    return { success: true }
-  }
+      const profile = await safeFetchUserProfile();
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem(STORAGE_KEY)
-  }
+      const loggedInUser: User = {
+        id: email.toLowerCase(),
+        name: profile?.username || email,
+        email,
+        companyName: profile?.company_name,
+      };
+
+      setUser(loggedInUser);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: loggedInUser }));
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error:
+          err.name === "UserNotConfirmedException"
+            ? "User not confirmed"
+            : err.message || "Login failed",
+      };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const profile = await fetchUserProfile();
+
+      const updatedUser: User = {
+        id: profile.email.toLowerCase(),
+        name: profile.username || profile.email,
+        email: profile.email,
+        companyName: profile.company_name,
+      };
+
+      setUser(updatedUser);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user: updatedUser }));
+
+      return updatedUser;
+    } catch (err) {
+      console.warn("Failed to refresh user:", err);
+      return null;
+    }
+  };
+
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    companyName?: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email,
+            preferred_username: name,
+            "custom:company_name": companyName?.trim() || undefined,
+          },
+        },
+      });
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || "Signup failed",
+      };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut();
+    } catch (err) {
+      console.warn("Cognito signOut failed:", err);
+    }
+
+    setUser(null);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const deleteAccount = async () => {
+    try {
+      await deleteUser(); // deletes Cognito user
+    } catch (err) {
+      console.warn("Failed to delete Cognito user:", err);
+    }
+
+    setUser(null);
+    localStorage.removeItem(STORAGE_KEY);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        register,
+        logout,
+        refreshUser,
+        deleteAccount,
+      }}
+    >
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

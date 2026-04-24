@@ -27,6 +27,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [companyName, setCompanyName] = useState("");
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -36,6 +37,8 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const finalCompanyName =
+      companyName.trim() === "" ? "Not Set" : companyName;
     setError("");
 
     if (password !== confirmPassword) {
@@ -50,10 +53,15 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    const result = await register(name, email, password);
+    const result = await register(name, email, password, finalCompanyName);
 
     if (result.success) {
-      router.push("/dashboard");
+      sessionStorage.setItem("temp_password", password);
+      const returnTo = "/dashboard";
+
+      router.push(
+        `/confirm?email=${encodeURIComponent(email)}&returnTo=${encodeURIComponent(returnTo)}`,
+      );
     } else {
       setError(result.error || "Registration failed");
       setIsLoading(false);
@@ -108,6 +116,21 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="text-slate-200">
+                    Company Name{" "}
+                    <span className="text-slate-400">(optional)</span>
+                  </Label>
+                  <Input
+                    id="company"
+                    type="text"
+                    placeholder="Your company (optional)"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
                     disabled={isLoading}
                   />
                 </div>
